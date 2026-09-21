@@ -38,3 +38,5 @@ découvrable automatiquement uniquement pour les travaux de diffusion externe.
 
 Aucune télémétrie et aucun appel réseau. Les scripts utilisent uniquement la bibliothèque
 standard Python et échouent explicitement si le journal local ne peut pas être écrit.
+
+Le déroulé de la première série de dix usages est détaillé dans [`docs/pilot.md`](docs/pilot.md).
