@@ -15,9 +15,24 @@ from pathlib import Path
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DEFAULT_THRESHOLD = 10
 SEVERITIES = {"info", "minor", "major", "blocker"}
+EVIDENCE_STATUSES = {"observed", "declared", "unverified", "contradictory"}
+VERSION_SCOPES = {"current", "earlier", "unspecified", "not-applicable"}
+TARGET_STAGES = {"assisted-pilot", "closed-beta", "public-beta", "stable-release"}
+CATEGORIES = {
+    "audience",
+    "promise",
+    "demo",
+    "identity",
+    "install",
+    "compatibility",
+    "discovery",
+    "distribution",
+    "measurement",
+    "evidence",
+}
 ARTIFACT_KINDS = {
     "repository",
     "plugin",
@@ -33,6 +48,7 @@ SENSITIVE_PATTERNS = (
     re.compile(r"\b(?:password|passwd|token|secret|api[_-]?key)\s*[:=]", re.IGNORECASE),
     re.compile(r"https?://\S+\?\S+"),
 )
+ISSUE_ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 def state_dir() -> Path:
@@ -122,17 +138,73 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return items
 
 
-def parse_finding(value: str) -> dict[str, str]:
-    parts = value.split("|", 2)
-    if len(parts) != 3:
-        raise ValueError("finding attendu: categorie|severite|resume")
-    category, severity, summary = parts
+def _issue_id(value: str) -> str:
+    issue_id = _safe_text(value, "finding.issue_id")
+    if not ISSUE_ID_PATTERN.fullmatch(issue_id):
+        raise ValueError("finding.issue_id: utiliser un identifiant kebab-case stable")
+    return issue_id
+
+
+def parse_finding(value: str) -> dict[str, Any]:
+    parts = value.split("|", 6)
+    legacy = len(parts) == 3
+    if legacy:
+        category, severity, summary = parts
+        safe_summary = _safe_text(summary, "finding.summary")
+        issue_id = "legacy-" + hashlib.sha256(
+            f"{category.casefold()}\0{safe_summary.casefold()}".encode()
+        ).hexdigest()[:12]
+        evidence_status = "unverified"
+        version_scope = "unspecified"
+        reproducible = False
+    elif len(parts) == 7:
+        (
+            raw_issue_id,
+            category,
+            severity,
+            evidence_status,
+            version_scope,
+            reproducible_text,
+            summary,
+        ) = parts
+        issue_id = _issue_id(raw_issue_id)
+        safe_summary = _safe_text(summary, "finding.summary")
+        if reproducible_text not in {"true", "false"}:
+            raise ValueError("finding.reproducible attendu: true ou false")
+        reproducible = reproducible_text == "true"
+    else:
+        raise ValueError(
+            "finding attendu: issue-id|categorie|severite|preuve|version|reproductible|resume"
+        )
+    if category not in CATEGORIES:
+        raise ValueError(f"catégorie inconnue: {category}")
     if severity not in SEVERITIES:
         raise ValueError(f"sévérité inconnue: {severity}")
+    if evidence_status not in EVIDENCE_STATUSES:
+        raise ValueError(f"état de preuve inconnu: {evidence_status}")
+    if version_scope not in VERSION_SCOPES:
+        raise ValueError(f"portée de version inconnue: {version_scope}")
     return {
+        "issue_id": issue_id,
         "category": _safe_text(category, "finding.category"),
         "severity": severity,
-        "summary": _safe_text(summary, "finding.summary"),
+        "evidence_status": evidence_status,
+        "version_scope": version_scope,
+        "reproducible": reproducible,
+        "summary": safe_summary,
+        "legacy": legacy,
+    }
+
+
+def parse_improvement(value: str) -> dict[str, str]:
+    parts = value.split("|", 2)
+    if len(parts) != 3:
+        raise ValueError("improvement attendu: issue-id|changement-minimal|test")
+    issue_id, change, test = parts
+    return {
+        "issue_id": _issue_id(issue_id),
+        "minimal_change": _safe_text(change, "improvement.minimal_change"),
+        "regression_test": _safe_text(test, "improvement.regression_test"),
     }
 
 
@@ -141,6 +213,17 @@ def record(args: argparse.Namespace) -> dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True)
     if args.artifact_kind not in ARTIFACT_KINDS:
         raise ValueError(f"type de livrable inconnu: {args.artifact_kind}")
+    findings = [parse_finding(value) for value in args.finding]
+    improvements = [parse_improvement(value) for value in getattr(args, "improvement", [])]
+    finding_ids = {finding["issue_id"] for finding in findings if not finding["legacy"]}
+    improvement_ids = {improvement["issue_id"] for improvement in improvements}
+    if improvement_ids - finding_ids:
+        raise ValueError("improvement: identifiant absent des constats")
+    if finding_ids - improvement_ids:
+        raise ValueError("chaque constat v2 doit avoir un changement minimal et un test")
+    target_stage = getattr(args, "target_stage", None)
+    if target_stage not in TARGET_STAGES:
+        raise ValueError(f"niveau de diffusion inconnu: {target_stage}")
     event = {
         "schema_version": SCHEMA_VERSION,
         "usage_id": str(uuid.uuid4()),
@@ -148,7 +231,11 @@ def record(args: argparse.Namespace) -> dict[str, Any]:
         "project_id": project_id(args.project_root, root),
         "artifact_kind": args.artifact_kind,
         "trigger": _safe_text(args.trigger, "trigger"),
-        "findings": [parse_finding(value) for value in args.finding],
+        "audience": _safe_text(args.audience, "audience"),
+        "channel": _safe_text(args.channel, "channel"),
+        "target_stage": target_stage,
+        "findings": findings,
+        "improvements": improvements,
         "decisions": [_safe_text(value, "decision") for value in args.decision],
         "verification": [_safe_text(value, "verification") for value in args.verification],
         "outcome": _safe_text(args.outcome, "outcome"),
@@ -183,7 +270,11 @@ def build_parser() -> argparse.ArgumentParser:
     record_parser.add_argument("--project-root", required=True)
     record_parser.add_argument("--artifact-kind", required=True, choices=sorted(ARTIFACT_KINDS))
     record_parser.add_argument("--trigger", required=True)
+    record_parser.add_argument("--audience", required=True)
+    record_parser.add_argument("--channel", required=True)
+    record_parser.add_argument("--target-stage", required=True, choices=sorted(TARGET_STAGES))
     record_parser.add_argument("--finding", action="append", default=[])
+    record_parser.add_argument("--improvement", action="append", default=[])
     record_parser.add_argument("--decision", action="append", default=[])
     record_parser.add_argument("--verification", action="append", default=[])
     record_parser.add_argument("--outcome", required=True)

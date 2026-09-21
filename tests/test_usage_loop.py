@@ -41,13 +41,30 @@ class UsageLoopTests(unittest.TestCase):
         self.env.stop()
         self.temp.cleanup()
 
-    def args(self, index: int, project: str | None = None) -> argparse.Namespace:
+    def args(
+        self,
+        index: int,
+        project: str | None = None,
+        summary: str = "La preuve publiée ne correspond pas à la version courante",
+        severity: str = "major",
+        reproducible: bool = False,
+    ) -> argparse.Namespace:
         return argparse.Namespace(
             project_root=project or str(Path(self.temp.name) / f"project-{index % 2}"),
             artifact_kind="repository",
             trigger="publication README",
-            finding=["promise|major|La promesse décrit le système plutôt que le résultat"],
-            decision=["Montrer un avant-après avant l'architecture"],
+            audience="utilisateurs externes pilotes",
+            channel="release publique",
+            target_stage="stable-release",
+            finding=[
+                "release-evidence-mismatch|evidence|"
+                f"{severity}|observed|current|{str(reproducible).lower()}|{summary}"
+            ],
+            improvement=[
+                "release-evidence-mismatch|Relier la release à la preuve de la même version|"
+                "Échouer si version et preuve divergent"
+            ],
+            decision=["Aligner l'artefact et sa preuve avant diffusion"],
             verification=["README relu statiquement"],
             outcome="audit livré",
             completed=True,
@@ -62,8 +79,55 @@ class UsageLoopTests(unittest.TestCase):
         self.assertTrue(result["generated"])
         report = Path(result["report"]).read_text(encoding="utf-8")
         self.assertIn("0001-0010", report)
+        self.assertIn("release-evidence-mismatch", report)
+        self.assertIn("Changement minimal proposé", report)
+        self.assertIn("Échouer si version et preuve divergent", report)
+        self.assertIn("ne représentent", report)
         self.assertIn("Aucun fichier du skill officiel n'a été modifié", report)
         self.assertFalse(review_usage.generate()["generated"])
+
+    def test_equivalent_findings_are_grouped_by_stable_issue_id(self) -> None:
+        summaries = [
+            "La preuve publiée ne correspond pas au candidat",
+            "Published evidence covers an earlier release",
+            "Le rapport concerne une version antérieure",
+        ]
+        projects = [
+            str(Path(self.temp.name) / "project-a"),
+            str(Path(self.temp.name) / "project-b"),
+            str(Path(self.temp.name) / "project-a"),
+        ]
+        for index, summary in enumerate(summaries):
+            usage_log.record(self.args(index, project=projects[index], summary=summary))
+        candidates = review_usage._candidate_findings(
+            usage_log.read_jsonl(Path(self.temp.name) / "usage.jsonl")
+        )
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["issue_id"], "release-evidence-mismatch")
+        self.assertEqual(candidates[0]["occurrences"], 3)
+        self.assertEqual(candidates[0]["projects"], 2)
+
+    def test_single_blocker_requires_reproducibility_for_promotion(self) -> None:
+        event = usage_log.record(self.args(1, severity="blocker", reproducible=False))
+        self.assertEqual(review_usage._candidate_findings([event]), [])
+        reproducible = usage_log.record(
+            self.args(2, severity="blocker", reproducible=True)
+        )
+        candidates = review_usage._candidate_findings([reproducible])
+        self.assertEqual([item["issue_id"] for item in candidates], ["release-evidence-mismatch"])
+
+    def test_reproducible_minor_does_not_promote_unreproduced_blocker(self) -> None:
+        blocker = usage_log.record(self.args(1, severity="blocker", reproducible=False))
+        minor = usage_log.record(self.args(2, severity="minor", reproducible=True))
+        self.assertEqual(review_usage._candidate_findings([blocker, minor]), [])
+
+    def test_legacy_finding_format_remains_readable(self) -> None:
+        finding = usage_log.parse_finding(
+            "promise|major|La promesse décrit le système plutôt que le résultat"
+        )
+        self.assertTrue(finding["legacy"])
+        self.assertTrue(finding["issue_id"].startswith("legacy-"))
+        self.assertEqual(finding["evidence_status"], "unverified")
 
     def test_sensitive_values_are_rejected(self) -> None:
         args = self.args(1)
@@ -85,6 +149,12 @@ class UsageLoopTests(unittest.TestCase):
         args.completed = False
         usage_log.record(args)
         self.assertEqual(usage_log.status()["total_completed"], 0)
+
+    def test_new_finding_requires_matching_improvement(self) -> None:
+        args = self.args(1)
+        args.improvement = []
+        with self.assertRaises(ValueError):
+            usage_log.record(args)
 
 
 if __name__ == "__main__":

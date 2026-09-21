@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import uuid
 from collections import Counter, defaultdict
@@ -13,27 +14,109 @@ from typing import Any
 from usage_log import DEFAULT_THRESHOLD, _lock, append_jsonl, read_jsonl, state_dir
 
 
-def _candidate_findings(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    occurrences: dict[tuple[str, str, str], list[str]] = defaultdict(list)
+SEVERITY_RANK = {"info": 0, "minor": 1, "major": 2, "blocker": 3}
+
+
+def _finding_issue_id(finding: dict[str, Any]) -> str:
+    if finding.get("issue_id"):
+        return str(finding["issue_id"])
+    legacy = f"{finding.get('category', '')}\0{finding.get('summary', '')}".casefold()
+    return "legacy-" + hashlib.sha256(legacy.encode()).hexdigest()[:12]
+
+
+def _most_common(values: list[str], fallback: str) -> str:
+    return Counter(values).most_common(1)[0][0] if values else fallback
+
+
+def _group_findings(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {
+            "categories": [],
+            "severities": [],
+            "summaries": [],
+            "projects": [],
+            "evidence_statuses": [],
+            "version_scopes": [],
+            "target_stages": [],
+            "reproducible": False,
+            "reproducible_blocker": False,
+            "changes": [],
+            "tests": [],
+        }
+    )
     for event in events:
+        improvements = {
+            item.get("issue_id"): item
+            for item in event.get("improvements", [])
+            if item.get("issue_id")
+        }
         for finding in event.get("findings", []):
-            key = (finding["category"], finding["severity"], finding["summary"])
-            occurrences[key].append(event["project_id"])
-    candidates = []
-    for (category, severity, summary), projects in occurrences.items():
-        count = len(projects)
-        project_count = len(set(projects))
-        if severity == "blocker" or (count >= 3 and project_count >= 2):
-            candidates.append(
-                {
-                    "category": category,
-                    "severity": severity,
-                    "summary": summary,
-                    "occurrences": count,
-                    "projects": project_count,
-                }
+            issue_id = _finding_issue_id(finding)
+            group = grouped[issue_id]
+            group["categories"].append(str(finding.get("category", "unknown")))
+            group["severities"].append(str(finding.get("severity", "info")))
+            group["summaries"].append(str(finding.get("summary", "")))
+            group["projects"].append(str(event.get("project_id", "unknown")))
+            group["evidence_statuses"].append(
+                str(finding.get("evidence_status", "unverified"))
             )
-    return sorted(candidates, key=lambda item: (item["severity"] != "blocker", -item["occurrences"]))
+            group["version_scopes"].append(str(finding.get("version_scope", "unspecified")))
+            group["target_stages"].append(str(event.get("target_stage", "unspecified")))
+            group["reproducible"] = group["reproducible"] or bool(
+                finding.get("reproducible", False)
+            )
+            group["reproducible_blocker"] = group["reproducible_blocker"] or (
+                finding.get("severity") == "blocker"
+                and bool(finding.get("reproducible", False))
+            )
+            improvement = improvements.get(issue_id)
+            if improvement:
+                group["changes"].append(str(improvement.get("minimal_change", "")))
+                group["tests"].append(str(improvement.get("regression_test", "")))
+    result = []
+    for issue_id, group in grouped.items():
+        severity = max(
+            group["severities"], key=lambda value: SEVERITY_RANK.get(value, -1)
+        )
+        result.append(
+            {
+                "issue_id": issue_id,
+                "category": _most_common(group["categories"], "unknown"),
+                "severity": severity,
+                "summary": _most_common(group["summaries"], "Résumé indisponible"),
+                "occurrences": len(group["projects"]),
+                "projects": len(set(group["projects"])),
+                "evidence_statuses": sorted(set(group["evidence_statuses"])),
+                "version_scopes": sorted(set(group["version_scopes"])),
+                "target_stages": sorted(set(group["target_stages"])),
+                "reproducible": group["reproducible"],
+                "reproducible_blocker": group["reproducible_blocker"],
+                "minimal_change": _most_common(
+                    [value for value in group["changes"] if value], "À définir"
+                ),
+                "regression_test": _most_common(
+                    [value for value in group["tests"] if value], "À définir"
+                ),
+            }
+        )
+    return sorted(
+        result,
+        key=lambda item: (
+            -item["projects"],
+            -item["occurrences"],
+            -SEVERITY_RANK.get(item["severity"], -1),
+            item["issue_id"],
+        ),
+    )
+
+
+def _candidate_findings(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        item
+        for item in _group_findings(events)
+        if (item["occurrences"] >= 3 and item["projects"] >= 2)
+        or item["reproducible_blocker"]
+    ]
 
 
 def _render(batch_id: str, start: int, end: int, events: list[dict[str, Any]]) -> str:
@@ -43,6 +126,13 @@ def _render(batch_id: str, start: int, end: int, events: list[dict[str, Any]]) -
     severities = Counter(
         finding["severity"] for event in events for finding in event.get("findings", [])
     )
+    evidence_statuses = Counter(
+        finding.get("evidence_status", "unverified")
+        for event in events
+        for finding in event.get("findings", [])
+    )
+    target_stages = Counter(event.get("target_stage", "unspecified") for event in events)
+    grouped = _group_findings(events)
     candidates = _candidate_findings(events)
     lines = [
         f"# Bilan d'usage {batch_id}",
@@ -54,21 +144,43 @@ def _render(batch_id: str, start: int, end: int, events: list[dict[str, Any]]) -
         "",
         f"- Catégories : {json.dumps(categories, ensure_ascii=False, sort_keys=True)}",
         f"- Sévérités : {json.dumps(severities, ensure_ascii=False, sort_keys=True)}",
+        f"- États de preuve : {json.dumps(evidence_statuses, ensure_ascii=False, sort_keys=True)}",
+        f"- Niveaux de diffusion : {json.dumps(target_stages, ensure_ascii=False, sort_keys=True)}",
         "",
-        "## Candidats à l'amélioration officielle",
+        "Ces nombres décrivent les constats sélectionnés pour le journal. Ils ne représentent",
+        "ni le nombre de projets affectés, ni un taux d'échec de la population auditée.",
+        "",
+        "## Motifs observés",
         "",
     ]
+    for item in grouped:
+        lines.append(
+            f"- `{item['issue_id']}` — {item['occurrences']} occurrence(s), "
+            f"{item['projects']} projet(s), sévérité maximale `{item['severity']}`"
+        )
+    lines.extend(["", "## Candidats à l'amélioration officielle", ""])
     if not candidates:
         lines.append("Aucun motif n'atteint le seuil de promotion dans ce lot.")
     else:
         for candidate in candidates:
-            lines.append(
-                f"- [{candidate['severity']}] {candidate['category']} — {candidate['summary']} "
-                f"({candidate['occurrences']} occurrences, {candidate['projects']} projets)"
+            lines.extend(
+                [
+                    f"### `{candidate['issue_id']}`",
+                    "",
+                    f"- Catégorie / sévérité : `{candidate['category']}` / `{candidate['severity']}`",
+                    f"- Occurrences / projets : {candidate['occurrences']} / {candidate['projects']}",
+                    f"- Reproductible : {'oui' if candidate['reproducible'] else 'non établi'}",
+                    f"- États de preuve : {', '.join(candidate['evidence_statuses'])}",
+                    f"- Portées de version : {', '.join(candidate['version_scopes'])}",
+                    f"- Niveaux de diffusion : {', '.join(candidate['target_stages'])}",
+                    f"- Observation représentative : {candidate['summary']}",
+                    f"- Changement minimal proposé : {candidate['minimal_change']}",
+                    f"- Test de non-régression proposé : {candidate['regression_test']}",
+                    "",
+                ]
             )
     lines.extend(
         [
-            "",
             "## Décision humaine requise",
             "",
             "Pour chaque candidat : conserver dans le journal, enrichir une référence, proposer une règle, ou rejeter.",
@@ -98,7 +210,7 @@ def generate(threshold: int = DEFAULT_THRESHOLD) -> dict[str, Any]:
     report_path = report_dir / f"{batch_id}.md"
     report_path.write_text(_render(batch_id, start, end, batch), encoding="utf-8", newline="\n")
     review_event = {
-        "schema_version": 1,
+        "schema_version": 2,
         "review_id": str(uuid.uuid4()),
         "occurred_at": datetime.now(timezone.utc).isoformat(),
         "batch_id": batch_id,

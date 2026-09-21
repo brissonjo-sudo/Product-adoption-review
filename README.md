@@ -21,6 +21,11 @@ Les prompts, réponses, chemins de projet, secrets et données personnelles sont
 Chaque lot de dix usages produit un bilan Markdown local. Le bilan peut proposer une
 évolution, mais ne modifie jamais automatiquement le skill officiel.
 
+Depuis la version 0.2.0, chaque audit précise le niveau de diffusion évalué, l'état des
+preuves et leur portée de version. Les problèmes équivalents partagent un identifiant
+stable : le bilan peut ainsi les regrouper malgré des résumés ou des langues différents.
+Chaque candidat contient le changement minimal et le test de non-régression proposés.
+
 ## Gouvernance
 
 - dépôt pilote privé en version `0.x` ;
@@ -28,6 +33,10 @@ Chaque lot de dix usages produit un bilan Markdown local. Le bilan peut proposer
 - validation humaine obligatoire ;
 - branche, test de non-régression et PR sans fusion automatique ;
 - publication `1.0.0` après le premier bilan accepté.
+
+Un verdict porte toujours sur un niveau explicite : pilote accompagné, bêta fermée,
+bêta publique ou diffusion stable. L'absence de preuve d'adoption ne suffit pas à
+refuser un pilote destiné à recueillir cette preuve.
 
 ## Installation pilote
 

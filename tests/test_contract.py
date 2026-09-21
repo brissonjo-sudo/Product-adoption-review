@@ -20,6 +20,15 @@ class ContractTests(unittest.TestCase):
         self.assertIn("Ne pas", skill)
         self.assertIn("développement interne", skill)
 
+    def test_audit_contract_captures_stage_and_evidence_quality(self) -> None:
+        skill = (ROOT / "skills" / "product-adoption-review" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("assisted-pilot", skill)
+        self.assertIn("contradictory", skill)
+        self.assertIn("issue-id", skill)
+        self.assertIn("test-de-non-régression", skill)
+
 
 if __name__ == "__main__":
     unittest.main()
