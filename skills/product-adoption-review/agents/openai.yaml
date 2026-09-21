@@ -1,0 +1,6 @@
+interface:
+  display_name: "Revue adoption produit"
+  short_description: "Audite la mise en produit avant diffusion externe"
+  default_prompt: "Use $product-adoption-review to audit this release for adoption readiness."
+policy:
+  allow_implicit_invocation: true
