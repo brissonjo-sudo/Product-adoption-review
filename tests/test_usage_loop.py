@@ -156,6 +156,28 @@ class UsageLoopTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             usage_log.record(args)
 
+    def test_duplicate_problem_cannot_inflate_audit_count(self) -> None:
+        args = self.args(1)
+        args.finding *= 2
+        with self.assertRaises(ValueError):
+            usage_log.record(args)
+
+    def test_existing_duplicate_findings_count_once_per_use(self) -> None:
+        first = usage_log.record(self.args(1))
+        first["findings"] *= 2
+        second = usage_log.record(self.args(2))
+        self.assertEqual(review_usage._candidate_findings([first, second]), [])
+        self.assertEqual(review_usage._group_findings([first, second])[0]["occurrences"], 2)
+
+    def test_go_without_findings_is_valid(self) -> None:
+        args = self.args(1)
+        args.finding = []
+        args.improvement = []
+        args.outcome = "GO pour remise documentaire"
+        event = usage_log.record(args)
+        self.assertEqual(event["findings"], [])
+        self.assertEqual(event["improvements"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

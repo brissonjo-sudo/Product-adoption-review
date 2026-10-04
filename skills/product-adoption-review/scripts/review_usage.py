@@ -35,6 +35,7 @@ def _group_findings(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "severities": [],
             "summaries": [],
             "projects": [],
+            "uses": set(),
             "evidence_statuses": [],
             "version_scopes": [],
             "target_stages": [],
@@ -44,7 +45,7 @@ def _group_findings(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "tests": [],
         }
     )
-    for event in events:
+    for event_index, event in enumerate(events):
         improvements = {
             item.get("issue_id"): item
             for item in event.get("improvements", [])
@@ -53,6 +54,7 @@ def _group_findings(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for finding in event.get("findings", []):
             issue_id = _finding_issue_id(finding)
             group = grouped[issue_id]
+            group["uses"].add(event_index)
             group["categories"].append(str(finding.get("category", "unknown")))
             group["severities"].append(str(finding.get("severity", "info")))
             group["summaries"].append(str(finding.get("summary", "")))
@@ -84,7 +86,7 @@ def _group_findings(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "category": _most_common(group["categories"], "unknown"),
                 "severity": severity,
                 "summary": _most_common(group["summaries"], "Résumé indisponible"),
-                "occurrences": len(group["projects"]),
+                "occurrences": len(group["uses"]),
                 "projects": len(set(group["projects"])),
                 "evidence_statuses": sorted(set(group["evidence_statuses"])),
                 "version_scopes": sorted(set(group["version_scopes"])),

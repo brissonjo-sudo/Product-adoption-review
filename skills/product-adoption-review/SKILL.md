@@ -64,8 +64,14 @@ Ajouter pour chaque constat :
 `issue-id|changement-minimal|test-de-non-régression`
 
 Renseigner aussi l'audience, le canal et le niveau de diffusion cible. Limiter le journal
-à deux à quatre constats décisifs ; les agrégats du bilan décrivent cette sélection et
+à quatre constats décisifs au plus ; un audit sans défaut peut avoir zéro constat.
+Les agrégats du bilan décrivent cette sélection et
 ne constituent pas un taux d'échec des projets.
+
+Avant d'enregistrer un événement, lire [references/journal-schema.md](references/journal-schema.md)
+pour les options CLI et la séparation entre constats et propositions. Utiliser le script
+pour valider le contrat. Les évaluations synthétiques utilisent un état temporaire isolé
+et ne font pas progresser le compteur réel.
 
 Exécuter ensuite `scripts/review_usage.py`. Le script produit un bilan local lorsqu'un
 nouveau lot de dix usages terminés est disponible. Mentionner le chemin du bilan, mais

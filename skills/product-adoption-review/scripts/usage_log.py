@@ -215,6 +215,10 @@ def record(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError(f"type de livrable inconnu: {args.artifact_kind}")
     findings = [parse_finding(value) for value in args.finding]
     improvements = [parse_improvement(value) for value in getattr(args, "improvement", [])]
+    if len({finding["issue_id"] for finding in findings}) != len(findings):
+        raise ValueError("un problème ne peut apparaître qu'une fois par audit")
+    if len({item["issue_id"] for item in improvements}) != len(improvements):
+        raise ValueError("une proposition ne peut apparaître qu'une fois par problème")
     finding_ids = {finding["issue_id"] for finding in findings if not finding["legacy"]}
     improvement_ids = {improvement["issue_id"] for improvement in improvements}
     if improvement_ids - finding_ids:

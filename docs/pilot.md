@@ -19,3 +19,7 @@ documenter, proposer une règle ou rejeter.
 Une modification approuvée reçoit une branche, un test de non-régression et une PR sans
 fusion automatique. La publication du dépôt et la version `1.0.0` restent bloquées tant
 que cette première revue n'est pas acceptée.
+
+L'évaluation ciblée du candidat 0.2.0 et ses limites sont détaillées dans
+[`evaluation-0.2.0.md`](evaluation-0.2.0.md). Les fixtures synthétiques utilisent un état
+isolé et ne comptent pas comme de nouveaux usages produit.
