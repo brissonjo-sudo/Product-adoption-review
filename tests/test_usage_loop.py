@@ -122,13 +122,35 @@ class UsageLoopTests(unittest.TestCase):
         minor = usage_log.record(self.args(2, severity="minor", reproducible=True))
         self.assertEqual(review_usage._candidate_findings([blocker, minor]), [])
 
-    def test_legacy_finding_format_remains_readable(self) -> None:
-        finding = usage_log.parse_finding(
-            "promise|major|La promesse décrit le système plutôt que le résultat"
-        )
-        self.assertTrue(finding["legacy"])
-        self.assertTrue(finding["issue_id"].startswith("legacy-"))
-        self.assertEqual(finding["evidence_status"], "unverified")
+    def test_legacy_events_in_journal_remain_grouped(self) -> None:
+        legacy = {
+            "project_id": "p1",
+            "findings": [
+                {"category": "promise", "severity": "major", "summary": "Promesse floue"}
+            ],
+        }
+        grouped = review_usage._group_findings([legacy, dict(legacy, project_id="p2")])
+        self.assertEqual(len(grouped), 1)
+        self.assertTrue(grouped[0]["issue_id"].startswith("legacy-"))
+        self.assertEqual(grouped[0]["occurrences"], 2)
+        self.assertEqual(grouped[0]["evidence_statuses"], ["unverified"])
+
+    def test_legacy_finding_format_is_refused_for_new_records(self) -> None:
+        with self.assertRaises(ValueError):
+            usage_log.parse_finding("promise|major|La promesse décrit le système")
+
+    def test_more_than_four_findings_are_refused(self) -> None:
+        args = self.args(1)
+        args.finding = [
+            f"issue-{i}|install|minor|observed|current|false|résumé {i}" for i in range(5)
+        ]
+        args.improvement = [f"issue-{i}|changer|tester" for i in range(5)]
+        with self.assertRaises(ValueError):
+            usage_log.record(args)
+
+    def test_non_positive_threshold_is_refused(self) -> None:
+        with self.assertRaises(ValueError):
+            usage_log.status(0)
 
     def test_sensitive_values_are_rejected(self) -> None:
         args = self.args(1)

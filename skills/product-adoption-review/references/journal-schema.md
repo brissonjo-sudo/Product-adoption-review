@@ -16,8 +16,10 @@ Arguments répétables :
 - `--decision 'decision assainie'` ;
 - `--verification 'controle et limites'`.
 
-Utiliser `true` ou `false` pour la reproductibilité. Chaque identifiant figure une seule
-fois par audit ; chaque constat v2 possède une proposition correspondante. Le script
+Utiliser `true` ou `false` pour la reproductibilité. Le script refuse plus de quatre
+`--finding` et l'ancien format à trois champs ; les anciens événements du journal restent
+lus par le bilan. Chaque identifiant figure une seule fois par audit ; chaque constat
+possède une proposition correspondante. Le script
 conserve les propositions dans `improvements`, séparément de `findings`.
 Un audit sans défaut comporte zéro `--finding` et zéro `--improvement`.
 

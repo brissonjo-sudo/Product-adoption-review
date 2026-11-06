@@ -18,6 +18,7 @@ from typing import Any, BinaryIO, Iterator
 SCHEMA_VERSION = 2
 DEFAULT_THRESHOLD = 10
 STALE_LOCK_SECONDS = 60
+MAX_FINDINGS = 4
 SEVERITIES = {"info", "minor", "major", "blocker"}
 EVIDENCE_STATUSES = {"observed", "declared", "unverified", "contradictory"}
 VERSION_SCOPES = {"current", "earlier", "unspecified", "not-applicable"}
@@ -183,36 +184,26 @@ def _issue_id(value: str) -> str:
 
 
 def parse_finding(value: str) -> dict[str, Any]:
+    # L'ancien format à 3 champs reste lisible dans le journal (review_usage), plus enregistrable.
     parts = value.split("|", 6)
-    legacy = len(parts) == 3
-    if legacy:
-        category, severity, summary = parts
-        safe_summary = _safe_text(summary, "finding.summary")
-        issue_id = "legacy-" + hashlib.sha256(
-            f"{category.casefold()}\0{safe_summary.casefold()}".encode()
-        ).hexdigest()[:12]
-        evidence_status = "unverified"
-        version_scope = "unspecified"
-        reproducible = False
-    elif len(parts) == 7:
-        (
-            raw_issue_id,
-            category,
-            severity,
-            evidence_status,
-            version_scope,
-            reproducible_text,
-            summary,
-        ) = parts
-        issue_id = _issue_id(raw_issue_id)
-        safe_summary = _safe_text(summary, "finding.summary")
-        if reproducible_text not in {"true", "false"}:
-            raise ValueError("finding.reproducible attendu: true ou false")
-        reproducible = reproducible_text == "true"
-    else:
+    if len(parts) != 7:
         raise ValueError(
             "finding attendu: issue-id|categorie|severite|preuve|version|reproductible|resume"
         )
+    (
+        raw_issue_id,
+        category,
+        severity,
+        evidence_status,
+        version_scope,
+        reproducible_text,
+        summary,
+    ) = parts
+    issue_id = _issue_id(raw_issue_id)
+    safe_summary = _safe_text(summary, "finding.summary")
+    if reproducible_text not in {"true", "false"}:
+        raise ValueError("finding.reproducible attendu: true ou false")
+    reproducible = reproducible_text == "true"
     if category not in CATEGORIES:
         raise ValueError(f"catégorie inconnue: {category}")
     if severity not in SEVERITIES:
@@ -229,7 +220,6 @@ def parse_finding(value: str) -> dict[str, Any]:
         "version_scope": version_scope,
         "reproducible": reproducible,
         "summary": safe_summary,
-        "legacy": legacy,
     }
 
 
@@ -250,18 +240,20 @@ def record(args: argparse.Namespace) -> dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True)
     if args.artifact_kind not in ARTIFACT_KINDS:
         raise ValueError(f"type de livrable inconnu: {args.artifact_kind}")
+    if len(args.finding) > MAX_FINDINGS:
+        raise ValueError(f"au plus {MAX_FINDINGS} constats décisifs par audit")
     findings = [parse_finding(value) for value in args.finding]
     improvements = [parse_improvement(value) for value in getattr(args, "improvement", [])]
     if len({finding["issue_id"] for finding in findings}) != len(findings):
         raise ValueError("un problème ne peut apparaître qu'une fois par audit")
     if len({item["issue_id"] for item in improvements}) != len(improvements):
         raise ValueError("une proposition ne peut apparaître qu'une fois par problème")
-    finding_ids = {finding["issue_id"] for finding in findings if not finding["legacy"]}
+    finding_ids = {finding["issue_id"] for finding in findings}
     improvement_ids = {improvement["issue_id"] for improvement in improvements}
     if improvement_ids - finding_ids:
         raise ValueError("improvement: identifiant absent des constats")
     if finding_ids - improvement_ids:
-        raise ValueError("chaque constat v2 doit avoir un changement minimal et un test")
+        raise ValueError("chaque constat doit avoir un changement minimal et un test")
     target_stage = getattr(args, "target_stage", None)
     if target_stage not in TARGET_STAGES:
         raise ValueError(f"niveau de diffusion inconnu: {target_stage}")
@@ -288,6 +280,8 @@ def record(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, int | bool | str]:
+    if threshold < 1:
+        raise ValueError("threshold doit être positif")
     root = state_dir()
     usage = [item for item in read_jsonl(root / "usage.jsonl") if item.get("completed") is True]
     reviews = read_jsonl(root / "review-events.jsonl")
