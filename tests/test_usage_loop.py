@@ -2,6 +2,7 @@ import argparse
 import importlib.util
 import json
 import os
+import subprocess
 import tempfile
 import time
 import unittest
@@ -318,6 +319,46 @@ class UsageLoopTests(unittest.TestCase):
             with usage_log._lock(Path(self.temp.name), timeout=0.1):
                 pass
         self.assertTrue(lock.exists())
+
+    def _input_file(self, **overrides) -> Path:
+        data = dict(vars(self.args(1)), **overrides)
+        path = Path(self.temp.name) / "record.json"
+        path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        return path
+
+    def test_record_from_input_file_matches_cli_contract(self) -> None:
+        path = self._input_file()
+        with patch("builtins.print"):
+            self.assertEqual(usage_log.main(["record", "--input", str(path)]), 0)
+        events = usage_log.read_jsonl(Path(self.temp.name) / "usage.jsonl")
+        self.assertEqual(events[0]["findings"][0]["issue_id"], "release-evidence-mismatch")
+        self.assertEqual(events[0]["target_stage"], "stable-release")
+
+    def test_input_file_refuses_invented_or_missing_fields(self) -> None:
+        for path in (
+            self._input_file(artifact_type="repository"),
+            self._input_file(outcome=None),
+            self._input_file(finding="pas une liste"),
+        ):
+            with self.subTest(path=path.read_text(encoding="utf-8")[:40]), patch("builtins.print"):
+                self.assertEqual(usage_log.main(["record", "--input", str(path)]), 1)
+        self.assertEqual(usage_log.read_jsonl(Path(self.temp.name) / "usage.jsonl"), [])
+
+    def test_input_file_cannot_be_mixed_with_inline_options(self) -> None:
+        path = self._input_file()
+        with self.assertRaises(SystemExit), patch("sys.stderr"):
+            usage_log.main(["record", "--input", str(path), "--outcome", "GO"])
+
+    def test_scripts_run_in_isolated_python_mode(self) -> None:
+        for script in ("review_usage.py", "usage_log.py"):
+            argv = [sys.executable, "-I", str(SCRIPTS / script)]
+            if script == "usage_log.py":
+                argv.append("status")
+            # -I ignore les variables PYTHON*, pas celle de l'état : l'isolement du test tient.
+            completed = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8")
+            with self.subTest(script=script):
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertTrue(json.loads(completed.stdout)["ok"])
 
     def test_incomplete_use_does_not_advance_threshold(self) -> None:
         args = self.args(1)

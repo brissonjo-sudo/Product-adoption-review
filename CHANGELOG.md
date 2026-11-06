@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.1] - 2026-11-06
+
+- Décisions `GO`, `GO conditionnel` et `NO-GO` définies dans la rubrique : toute action
+  requise avant la diffusion rend la décision conditionnelle. Écart observé sous Claude,
+  qui rendait GO là où Codex rendait GO conditionnel pour le même constat.
+- Description du skill enrichie de déclencheurs explicites (évaluer une diffusion, une
+  release, un lancement, verdict GO / NO-GO) : le skill ne s'activait pas dans un cas sur
+  trois sous Claude.
+- `usage_log.py record --input fichier.json` : voie recommandée pour journaliser. Sous
+  Claude, la longue ligne de commande de `record` était refusée par le contrôle des
+  commandes (0 enregistrement sur 9 essais). Le fichier refuse les champs inconnus.
+- `review_usage.py` fonctionne en mode `python -I` : l'import de `usage_log` échouait,
+  si bien que le bilan ne pouvait jamais être lancé par un agent qui isole Python.
+- Évaluation sous Claude du cas A (pilote accompagné) : GO, là où Codex rendait GO
+  conditionnel. Décision de Jo : GO est juste, l'étape 10 n'exige que des signaux
+  observables, sans seuil chiffré. Aucune règle ajoutée.
+
 ## [0.3.0] - 2026-11-06
 
 Corrections issues de la lecture des 14 usages réels du pilote.

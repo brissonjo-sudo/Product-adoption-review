@@ -13,6 +13,21 @@ La sévérité dépend du niveau de diffusion évalué. Un manque acceptable pou
 L'absence de preuve n'est pas un échec observé et ne devient pas automatiquement un
 `blocker`.
 
+## Décisions
+
+La décision porte sur le niveau de diffusion évalué, jamais sur un niveau supérieur.
+
+- `GO` : aucune action n'est requise avant de diffuser à ce niveau. Les améliorations
+  restantes sont facultatives (`info` ou `minor` sans effet sur l'essai).
+- `GO conditionnel` : la diffusion à ce niveau est acceptable **après** au moins une
+  action nommée, réalisable avant la diffusion et vérifiable. Une action présentée comme
+  « à faire avant la séance », « avant le pilote » ou « avant la release » rend la décision
+  conditionnelle, même si elle paraît mineure.
+- `NO-GO` : au moins un `blocker` ne peut pas être levé par une action simple avant la
+  diffusion, ou la promesse est contredite par une preuve disponible.
+
+Lister chaque condition d'un `GO conditionnel` avec son critère de vérification.
+
 ## Catégories
 
 Utiliser une catégorie courte et stable : `audience`, `promise`, `demo`, `identity`,

@@ -372,21 +372,54 @@ def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, Any]:
     }
 
 
+REQUIRED_RECORD_FIELDS = (
+    "project_root",
+    "artifact_kind",
+    "trigger",
+    "audience",
+    "channel",
+    "target_stage",
+    "outcome",
+)
+LIST_RECORD_FIELDS = ("finding", "improvement", "decision", "verification")
+
+
+def args_from_file(path: str) -> argparse.Namespace:
+    """Lit les arguments de record depuis un JSON, pour éviter une ligne de commande longue."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("--input : objet JSON attendu")
+    unknown = set(data) - {*REQUIRED_RECORD_FIELDS, *LIST_RECORD_FIELDS, "completed"}
+    if unknown:
+        raise ValueError(f"--input : champs inconnus {sorted(unknown)}")
+    missing = [key for key in REQUIRED_RECORD_FIELDS if not isinstance(data.get(key), str)]
+    if missing:
+        raise ValueError(f"--input : champs texte obligatoires manquants {missing}")
+    for key in LIST_RECORD_FIELDS:
+        values = data.setdefault(key, [])
+        if not isinstance(values, list) or not all(isinstance(item, str) for item in values):
+            raise ValueError(f"--input : {key} doit être une liste de textes")
+    if not isinstance(data.setdefault("completed", False), bool):
+        raise ValueError("--input : completed doit valoir true ou false")
+    return argparse.Namespace(**data)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     record_parser = subparsers.add_parser("record")
-    record_parser.add_argument("--project-root", required=True)
-    record_parser.add_argument("--artifact-kind", required=True, choices=sorted(ARTIFACT_KINDS))
-    record_parser.add_argument("--trigger", required=True)
-    record_parser.add_argument("--audience", required=True)
-    record_parser.add_argument("--channel", required=True)
-    record_parser.add_argument("--target-stage", required=True, choices=sorted(TARGET_STAGES))
+    record_parser.add_argument("--input", help="fichier JSON contenant tous les arguments")
+    record_parser.add_argument("--project-root")
+    record_parser.add_argument("--artifact-kind", choices=sorted(ARTIFACT_KINDS))
+    record_parser.add_argument("--trigger")
+    record_parser.add_argument("--audience")
+    record_parser.add_argument("--channel")
+    record_parser.add_argument("--target-stage", choices=sorted(TARGET_STAGES))
     record_parser.add_argument("--finding", action="append", default=[])
     record_parser.add_argument("--improvement", action="append", default=[])
     record_parser.add_argument("--decision", action="append", default=[])
     record_parser.add_argument("--verification", action="append", default=[])
-    record_parser.add_argument("--outcome", required=True)
+    record_parser.add_argument("--outcome")
     record_parser.add_argument("--completed", action="store_true")
     status_parser = subparsers.add_parser("status")
     status_parser.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD)
@@ -394,11 +427,22 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
-    args = build_parser().parse_args()
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.command == "record" and args.input:
+        mixed = [key for key in REQUIRED_RECORD_FIELDS if getattr(args, key) is not None]
+        if mixed or any(getattr(args, key) for key in LIST_RECORD_FIELDS) or args.completed:
+            parser.error("--input exclut les autres options de record")
+    if args.command == "record" and not args.input:
+        missing = [key for key in REQUIRED_RECORD_FIELDS if getattr(args, key) is None]
+        if missing:
+            parser.error("record exige --input ou " + ", ".join(
+                "--" + key.replace("_", "-") for key in missing
+            ))
     try:
         if args.command == "record":
-            result = record(args)
+            result = record(args_from_file(args.input) if args.input else args)
         elif args.command == "issues":
             result = issues()
         else:

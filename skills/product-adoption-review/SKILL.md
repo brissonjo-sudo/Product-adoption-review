@@ -1,6 +1,6 @@
 ---
 name: product-adoption-review
-description: "Audite la mise en produit lorsqu'un projet, dépôt, plugin, application, document ou autre livrable doit être diffusé à des utilisateurs externes. Vérifie promesse, démonstration, installation, découvrabilité, distribution et mesure, puis journalise localement les constats assainis. Ne pas activer pour le développement interne ordinaire."
+description: "Audite la mise en produit lorsqu'un projet, dépôt, plugin, application, document ou autre livrable doit être diffusé à des utilisateurs externes. Activer dès qu'on demande d'évaluer, d'auditer ou de valider une diffusion, une release, un lancement, un pilote, une bêta ou une remise à des utilisateurs, ou de rendre un verdict GO / NO-GO avant diffusion. Vérifie promesse, démonstration, installation, découvrabilité, distribution et mesure, puis journalise localement les constats assainis. Ne pas activer pour le développement interne ordinaire."
 license: MIT
 metadata:
   category: productivity
@@ -48,8 +48,8 @@ sévérité et les critères de promotion d'un apprentissage.
 
 ## Journal local obligatoire
 
-Après livraison d'un audit terminé, exécuter `scripts/usage_log.py record` avec des
-métadonnées assainies. Ne jamais enregistrer prompt, réponse, chemin absolu, secret,
+Après livraison d'un audit terminé, exécuter `scripts/usage_log.py record --input
+<fichier.json>` avec des métadonnées assainies (format dans `references/journal-schema.md`). Ne jamais enregistrer prompt, réponse, chemin absolu, secret,
 donnée personnelle ou contenu métier. Signaler si l'écriture échoue ; ne pas utiliser
 un fichier suivi par Git comme repli.
 
@@ -95,6 +95,7 @@ automatique.
 ## Résultat attendu
 
 Rendre une décision `GO`, `GO conditionnel` ou `NO-GO` pour le niveau de diffusion
-évalué. Rendre en priorité les blocages d'adoption, puis les corrections à fort effet. Ne pas
+évalué, selon les définitions de [references/review-rubric.md](references/review-rubric.md).
+Toute action requise avant la diffusion rend la décision au plus `GO conditionnel`. Rendre en priorité les blocages d'adoption, puis les corrections à fort effet. Ne pas
 recommander une nouvelle plateforme, un rebranding ou une publication externe sans lien
 avec les preuves collectées et le périmètre demandé.
