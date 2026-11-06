@@ -1,9 +1,11 @@
 {
   "name": "product-adoption-review",
-  "version": "0.1.0",
-  "description": "Audit external releases for positioning, installation, discoverability, distribution, and evidence.",
+  "version": "0.2.0",
+  "description": "Audit external releases for positioning, installability, discoverability, distribution, and evidence.",
   "author": {
     "name": "brissonjo-sudo",
     "url": "https://github.com/brissonjo-sudo"
-  }
+  },
+  "license": "MIT",
+  "keywords": ["productization", "launch", "adoption", "release", "claude-code"]
 }
