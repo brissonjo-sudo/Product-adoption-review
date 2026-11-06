@@ -77,7 +77,9 @@ et ne font pas progresser le compteur réel.
 Exécuter ensuite `scripts/review_usage.py`. Le script produit un bilan local lorsqu'un
 nouveau lot de dix usages terminés est disponible. Mentionner le chemin du bilan, mais
 ne modifier aucune règle officielle sans validation explicite de l'utilisateur. Si
-`status` signale des `undecided_reviews`, le rappeler à l'utilisateur. Après sa décision
+`status` signale des `undecided_reviews`, le rappeler à l'utilisateur. S'il renvoie
+`legacy_state_dir`, signaler l'ancien journal non migré et proposer la copie décrite dans
+le CHANGELOG 0.3.0, sans la faire sans accord. Après sa décision
 seulement, l'enregistrer avec `review_usage.py --decide <lot> --status accepted|rejected
 --note "<motif assaini>"`.
 

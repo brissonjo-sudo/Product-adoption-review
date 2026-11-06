@@ -77,6 +77,34 @@ def state_dir() -> Path:
     return base / "product-adoption-review"
 
 
+def legacy_state_dirs() -> list[Path]:
+    """Emplacements Windows antérieurs à la 0.3.0, y compris la copie virtualisée du Store."""
+    local = os.environ.get("LOCALAPPDATA")
+    if not local:
+        return []
+    base = Path(local)
+    suffix = Path("Codex") / "product-adoption-review"
+    stores = sorted(base.glob("Packages/OpenAI.Codex_*/LocalCache/Local"))
+    return [base / suffix, *(store / suffix for store in stores)]
+
+
+def _unmigrated_legacy(root: Path, current: list[dict[str, Any]]) -> dict[str, Any]:
+    known = {item.get("usage_id") for item in current}
+    for legacy in legacy_state_dirs():
+        if legacy == root or not (legacy / "usage.jsonl").exists():
+            continue
+        missing = [
+            item for item in read_jsonl(legacy / "usage.jsonl") if item.get("usage_id") not in known
+        ]
+        if missing:
+            return {
+                "legacy_state_dir": str(legacy),
+                "legacy_unmigrated_events": len(missing),
+                "migration_hint": f"copier le contenu de legacy_state_dir vers {root}",
+            }
+    return {}
+
+
 def _safe_text(value: str, field: str) -> str:
     text = value.strip()
     if not text or len(text) > 500:
@@ -321,7 +349,8 @@ def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, Any]:
     if threshold < 1:
         raise ValueError("threshold doit être positif")
     root = state_dir()
-    usage = [item for item in read_jsonl(root / "usage.jsonl") if item.get("completed") is True]
+    events = read_jsonl(root / "usage.jsonl")
+    usage = [item for item in events if item.get("completed") is True]
     reviews = read_jsonl(root / "review-events.jsonl")
     reported = max((int(item.get("end_count", 0)) for item in reviews), default=0)
     pending = max(0, len(usage) - reported)
@@ -339,6 +368,7 @@ def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, Any]:
         "next_review_at": reported + threshold,
         "accepted_reviews": sorted(key for key, value in latest.items() if value == "accepted"),
         "undecided_reviews": sorted(key for key, value in latest.items() if value == "proposed"),
+        **_unmigrated_legacy(root, events),
     }
 
 

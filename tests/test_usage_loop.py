@@ -33,7 +33,10 @@ class UsageLoopTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.env = patch.dict(
             os.environ,
-            {"PRODUCT_ADOPTION_REVIEW_STATE_DIR": self.temp.name},
+            {
+                "PRODUCT_ADOPTION_REVIEW_STATE_DIR": self.temp.name,
+                "LOCALAPPDATA": str(Path(self.temp.name) / "localappdata"),
+            },
             clear=False,
         )
         self.env.start()
@@ -97,6 +100,23 @@ class UsageLoopTests(unittest.TestCase):
             self.assertEqual(
                 usage_log.state_dir(), Path(self.temp.name) / "product-adoption-review"
             )
+
+    def test_status_warns_about_unmigrated_legacy_journal(self) -> None:
+        legacy = (
+            Path(os.environ["LOCALAPPDATA"])
+            / "Packages" / "OpenAI.Codex_test" / "LocalCache" / "Local"
+            / "Codex" / "product-adoption-review"
+        )
+        legacy.mkdir(parents=True)
+        event = usage_log.record(self.args(1))
+        self.assertNotIn("legacy_state_dir", usage_log.status())
+        old = dict(event, usage_id="ancien-usage")
+        (legacy / "usage.jsonl").write_text(json.dumps(old) + "\n", encoding="utf-8")
+        state = usage_log.status()
+        self.assertEqual(state["legacy_state_dir"], str(legacy))
+        self.assertEqual(state["legacy_unmigrated_events"], 1)
+        usage_log.append_jsonl(Path(self.temp.name) / "usage.jsonl", old)  # copie faite
+        self.assertNotIn("legacy_state_dir", usage_log.status())
 
     def test_review_event_stores_a_relative_report_path(self) -> None:
         for index in range(10):

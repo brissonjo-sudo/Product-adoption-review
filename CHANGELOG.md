@@ -4,6 +4,17 @@
 
 Corrections issues de la lecture des 14 usages réels du pilote.
 
+**Migration (Windows, journal antérieur).** Copier le contenu de l'ancien dossier vers
+`~/.local/share/product-adoption-review/`, fichier `install-id` compris pour conserver les
+pseudonymes de projet. L'ancien dossier est l'un des deux suivants :
+
+- `%LOCALAPPDATA%\Codex\product-adoption-review\` ;
+- avec l'application Codex du Microsoft Store :
+  `%LOCALAPPDATA%\Packages\OpenAI.Codex_<id>\LocalCache\Local\Codex\product-adoption-review\`.
+
+Tant que la copie manque, `usage_log.py status` renvoie `legacy_state_dir` et le nombre
+d'usages non migrés. Garder l'ancien dossier jusqu'à vérification des chiffres.
+
 - **Emplacement d'état unique** `~/.local/share/product-adoption-review` (ou
   `$XDG_DATA_HOME`) sur tous les systèmes : l'application Codex du Microsoft Store
   virtualisait `%LOCALAPPDATA%`, rendant le journal introuvable et scindant le compteur.
