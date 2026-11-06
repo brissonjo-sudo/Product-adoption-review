@@ -48,8 +48,8 @@ sévérité et les critères de promotion d'un apprentissage.
 
 ## Journal local obligatoire
 
-Après livraison d'un audit terminé, exécuter `scripts/usage_log.py record` avec des
-métadonnées assainies. Ne jamais enregistrer prompt, réponse, chemin absolu, secret,
+Après livraison d'un audit terminé, exécuter `scripts/usage_log.py record --input
+<fichier.json>` avec des métadonnées assainies (format dans `references/journal-schema.md`). Ne jamais enregistrer prompt, réponse, chemin absolu, secret,
 donnée personnelle ou contenu métier. Signaler si l'écriture échoue ; ne pas utiliser
 un fichier suivi par Git comme repli.
 

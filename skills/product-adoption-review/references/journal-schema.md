@@ -4,6 +4,41 @@ Le script `usage_log.py record` construit l'événement JSON. Fournir uniquement
 arguments ; ne pas inventer des champs tels que `artifact_type` ou `verdict`.
 Le verdict et ses limites sont enregistrés dans `outcome` et `decision`.
 
+## Voie recommandée : fichier d'entrée
+
+Écrire les arguments dans un fichier JSON temporaire, hors de tout dépôt Git, avec l'outil
+d'écriture de l'agent, puis exécuter une commande courte :
+
+```bash
+python <dossier-du-skill>/scripts/usage_log.py record --input <fichier.json>
+```
+
+Une longue ligne de commande pleine de guillemets peut être refusée par le contrôle des
+commandes de l'agent ou par Windows. Le fichier reprend les noms d'arguments ci-dessous en
+`snake_case` ; les arguments répétables deviennent des listes :
+
+```json
+{
+  "project_root": ".",
+  "artifact_kind": "document",
+  "trigger": "remise pilote",
+  "audience": "animateurs volontaires",
+  "channel": "remise directe",
+  "target_stage": "assisted-pilot",
+  "finding": [],
+  "improvement": [],
+  "decision": ["GO pour le pilote accompagné"],
+  "verification": ["fiche relue statiquement"],
+  "outcome": "GO",
+  "completed": true
+}
+```
+
+Le script refuse tout champ inconnu et tout mélange de `--input` avec d'autres options.
+Supprimer le fichier temporaire après un enregistrement réussi.
+
+## Arguments
+
 Arguments obligatoires : `--project-root` (haché, non conservé en clair),
 `--artifact-kind` (`repository`, `plugin`, `application`, `document`, `release`, `other`),
 `--trigger`, `--audience`, `--channel`, `--target-stage` et `--outcome`.

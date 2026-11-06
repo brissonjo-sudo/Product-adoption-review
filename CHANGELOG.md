@@ -8,6 +8,12 @@
 - Description du skill enrichie de déclencheurs explicites (évaluer une diffusion, une
   release, un lancement, verdict GO / NO-GO) : le skill ne s'activait pas dans un cas sur
   trois sous Claude.
+- `usage_log.py record --input fichier.json` : voie recommandée pour journaliser. Sous
+  Claude, la longue ligne de commande de `record` était refusée par le contrôle des
+  commandes (0 enregistrement sur 9 essais). Le fichier refuse les champs inconnus.
+- Évaluation sous Claude du cas A (pilote accompagné) : GO, là où Codex rendait GO
+  conditionnel. Décision de Jo : GO est juste, l'étape 10 n'exige que des signaux
+  observables, sans seuil chiffré. Aucune règle ajoutée.
 
 ## [0.3.0] - 2026-11-06
 
