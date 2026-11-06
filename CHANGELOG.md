@@ -14,6 +14,8 @@ Corrections issues de la lecture des 14 usages réels du pilote.
 - Décision humaine enregistrée par `review_usage.py --decide` ; `status` liste les bilans
   acceptés et non décidés.
 - README : exemple de verdict ; CI sur Python 3.10 et 3.13.
+- Premier bilan (0001-0010) accepté : ses cinq motifs récurrents confirment des étapes
+  existantes, sans nouvelle règle ; identifiant `demo-missing` ajouté au vocabulaire.
 
 ## [0.2.0] - 2026-09-22
 

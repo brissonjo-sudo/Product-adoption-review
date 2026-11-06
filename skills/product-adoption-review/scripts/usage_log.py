@@ -64,6 +64,7 @@ KNOWN_ISSUE_IDS = {
     "artifact-unavailable": "L'artefact demandé ne peut pas être obtenu",
     "claim-evidence-mismatch": "Une affirmation actuelle dépasse ou contredit la preuve",
     "adoption-feedback-missing": "Aucun retour volontaire n'est organisé",
+    "demo-missing": "Aucune démonstration avant/après ou entrée/sortie du résultat promis",
 }
 
 

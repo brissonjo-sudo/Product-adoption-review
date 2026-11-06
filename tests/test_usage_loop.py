@@ -118,6 +118,8 @@ class UsageLoopTests(unittest.TestCase):
         self.assertFalse(rows["custom-gap"]["known"])
         self.assertEqual(rows["custom-gap"]["projects"], 1)
         self.assertEqual(rows["artifact-unavailable"]["occurrences"], 0)
+        # Ajouté après la revue acceptée du bilan 0001-0010.
+        self.assertTrue(rows["demo-missing"]["known"])
 
     def test_record_signals_new_issue_ids_only_once(self) -> None:
         self.assertEqual(usage_log.record(self.args(1))["new_issue_ids"], [])
