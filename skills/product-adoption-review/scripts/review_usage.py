@@ -219,7 +219,7 @@ def generate(threshold: int = DEFAULT_THRESHOLD) -> dict[str, Any]:
         "start_count": start,
         "end_count": end,
         "status": "proposed",
-        "report": str(report_path),
+        "report": report_path.relative_to(root).as_posix(),
     }
     with _lock(root):
         append_jsonl(root / "review-events.jsonl", review_event)

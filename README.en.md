@@ -14,7 +14,7 @@ during ordinary internal development.
 After each completed review, the skill writes a minimal, pseudonymized entry to:
 
 ```text
-%LOCALAPPDATA%\Codex\product-adoption-review\usage.jsonl
+~/.local/share/product-adoption-review/usage.jsonl
 ```
 
 The project path is hashed and never stored. The script rejects known path, secret
@@ -60,9 +60,9 @@ The skill is discovered automatically only for external distribution work.
 
 State directory (log and reports):
 
-- Windows: `%LOCALAPPDATA%\Codex\product-adoption-review\`;
-- Linux and macOS: `$XDG_DATA_HOME/product-adoption-review/`, by default
-  `~/.local/share/product-adoption-review/`;
+- every system, Windows included: `~/.local/share/product-adoption-review/`, or
+  `$XDG_DATA_HOME/product-adoption-review/` when that variable is set (outside
+  `AppData`, which the Microsoft Store Codex app virtualizes);
 - override with the `PRODUCT_ADOPTION_REVIEW_STATE_DIR` variable.
 
 ## Privacy

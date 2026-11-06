@@ -14,7 +14,7 @@ le développement interne ordinaire.
 Après chaque audit terminé, le skill écrit une entrée minimale et pseudonymisée dans :
 
 ```text
-%LOCALAPPDATA%\Codex\product-adoption-review\usage.jsonl
+~/.local/share/product-adoption-review/usage.jsonl
 ```
 
 Le chemin du projet est haché, jamais conservé. Le script refuse les formats connus de
@@ -61,9 +61,9 @@ Le skill est découvrable automatiquement uniquement pour les travaux de diffusi
 
 Dossier d'état (journal et bilans) :
 
-- Windows : `%LOCALAPPDATA%\Codex\product-adoption-review\` ;
-- Linux et macOS : `$XDG_DATA_HOME/product-adoption-review/`, par défaut
-  `~/.local/share/product-adoption-review/` ;
+- tous systèmes, Windows compris : `~/.local/share/product-adoption-review/`, ou
+  `$XDG_DATA_HOME/product-adoption-review/` si cette variable est définie (hors
+  `AppData`, que l'application Codex du Microsoft Store virtualise) ;
 - surcharge possible avec la variable `PRODUCT_ADOPTION_REVIEW_STATE_DIR`.
 
 ## Confidentialité

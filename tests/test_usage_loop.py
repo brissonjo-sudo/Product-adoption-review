@@ -87,6 +87,24 @@ class UsageLoopTests(unittest.TestCase):
         self.assertIn("Aucun fichier du skill officiel n'a été modifié", report)
         self.assertFalse(review_usage.generate()["generated"])
 
+    def test_default_state_dir_is_the_same_on_every_system(self) -> None:
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("PRODUCT_ADOPTION_REVIEW_STATE_DIR", None)
+            os.environ.pop("XDG_DATA_HOME", None)
+            expected = Path.home() / ".local" / "share" / "product-adoption-review"
+            self.assertEqual(usage_log.state_dir(), expected)
+            os.environ["XDG_DATA_HOME"] = self.temp.name
+            self.assertEqual(
+                usage_log.state_dir(), Path(self.temp.name) / "product-adoption-review"
+            )
+
+    def test_review_event_stores_a_relative_report_path(self) -> None:
+        for index in range(10):
+            usage_log.record(self.args(index))
+        review_usage.generate()
+        events = usage_log.read_jsonl(Path(self.temp.name) / "review-events.jsonl")
+        self.assertEqual(events[0]["report"], "reviews/0001-0010.md")
+
     def test_equivalent_findings_are_grouped_by_stable_issue_id(self) -> None:
         summaries = [
             "La preuve publiée ne correspond pas au candidat",

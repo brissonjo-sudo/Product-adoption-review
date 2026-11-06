@@ -63,10 +63,8 @@ def state_dir() -> Path:
     override = os.environ.get("PRODUCT_ADOPTION_REVIEW_STATE_DIR")
     if override:
         return Path(override)
-    if os.name == "nt":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-        return base / "Codex" / "product-adoption-review"
-    base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    # Hors AppData : l'application Codex du Microsoft Store y virtualise les écritures.
+    base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
     return base / "product-adoption-review"
 
 
