@@ -105,6 +105,28 @@ class UsageLoopTests(unittest.TestCase):
         events = usage_log.read_jsonl(Path(self.temp.name) / "review-events.jsonl")
         self.assertEqual(events[0]["report"], "reviews/0001-0010.md")
 
+    def test_issues_lists_vocabulary_then_journal_ids(self) -> None:
+        args = self.args(1)
+        args.finding = ["custom-gap|install|minor|observed|current|false|Écart local"]
+        args.improvement = ["custom-gap|Corriger|Tester"]
+        usage_log.record(args)
+        usage_log.record(self.args(2))
+        rows = {row["issue_id"]: row for row in usage_log.issues()["issues"]}
+        self.assertTrue(set(usage_log.KNOWN_ISSUE_IDS) <= set(rows))
+        self.assertTrue(rows["release-evidence-mismatch"]["known"])
+        self.assertEqual(rows["release-evidence-mismatch"]["occurrences"], 1)
+        self.assertFalse(rows["custom-gap"]["known"])
+        self.assertEqual(rows["custom-gap"]["projects"], 1)
+        self.assertEqual(rows["artifact-unavailable"]["occurrences"], 0)
+
+    def test_record_signals_new_issue_ids_only_once(self) -> None:
+        self.assertEqual(usage_log.record(self.args(1))["new_issue_ids"], [])
+        args = self.args(2)
+        args.finding = ["custom-gap|install|minor|observed|current|false|Écart local"]
+        args.improvement = ["custom-gap|Corriger|Tester"]
+        self.assertEqual(usage_log.record(args)["new_issue_ids"], ["custom-gap"])
+        self.assertEqual(usage_log.record(args)["new_issue_ids"], [])
+
     def test_equivalent_findings_are_grouped_by_stable_issue_id(self) -> None:
         summaries = [
             "La preuve publiée ne correspond pas au candidat",

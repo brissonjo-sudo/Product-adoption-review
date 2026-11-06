@@ -57,6 +57,14 @@ SENSITIVE_PATTERNS = (
     re.compile(r"https?://\S+\?\S+"),
 )
 ISSUE_ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+KNOWN_ISSUE_IDS = {
+    "release-evidence-mismatch": "La preuve ne porte pas sur la version distribuée",
+    "release-version-mismatch": "Le numéro du paquet diverge de celui de son contenu",
+    "installation-lifecycle-incomplete": "Acquisition, vérification, mise à jour ou retrait manquent",
+    "artifact-unavailable": "L'artefact demandé ne peut pas être obtenu",
+    "claim-evidence-mismatch": "Une affirmation actuelle dépasse ou contredit la preuve",
+    "adoption-feedback-missing": "Aucun retour volontaire n'est organisé",
+}
 
 
 def state_dir() -> Path:
@@ -273,8 +281,39 @@ def record(args: argparse.Namespace) -> dict[str, Any]:
         "completed": bool(args.completed),
     }
     with _lock(root):
+        seen = _journal_issue_ids(read_jsonl(root / "usage.jsonl"))
         append_jsonl(root / "usage.jsonl", event)
-    return event
+    new_ids = sorted(finding_ids - KNOWN_ISSUE_IDS.keys() - seen.keys())
+    return {**event, "new_issue_ids": new_ids}
+
+
+def _journal_issue_ids(events: list[dict[str, Any]]) -> dict[str, dict[str, set[str]]]:
+    """Identifiants explicites du journal : usages et projets où chacun apparaît."""
+    found: dict[str, dict[str, set[str]]] = {}
+    for event in events:
+        for finding in event.get("findings", []):
+            issue_id = finding.get("issue_id")
+            if issue_id:
+                entry = found.setdefault(issue_id, {"uses": set(), "projects": set()})
+                entry["uses"].add(str(event.get("usage_id")))
+                entry["projects"].add(str(event.get("project_id")))
+    return found
+
+
+def issues() -> dict[str, Any]:
+    found = _journal_issue_ids(read_jsonl(state_dir() / "usage.jsonl"))
+    rows = [
+        {
+            "issue_id": issue_id,
+            "known": issue_id in KNOWN_ISSUE_IDS,
+            "description": KNOWN_ISSUE_IDS.get(issue_id, ""),
+            "occurrences": len(found.get(issue_id, {}).get("uses", ())),
+            "projects": len(found.get(issue_id, {}).get("projects", ())),
+        }
+        for issue_id in sorted(KNOWN_ISSUE_IDS.keys() | found.keys())
+    ]
+    rows.sort(key=lambda row: (not row["known"], -row["occurrences"], row["issue_id"]))
+    return {"issues": rows}
 
 
 def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, int | bool | str]:
@@ -314,13 +353,19 @@ def build_parser() -> argparse.ArgumentParser:
     record_parser.add_argument("--completed", action="store_true")
     status_parser = subparsers.add_parser("status")
     status_parser.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD)
+    subparsers.add_parser("issues")
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        result = record(args) if args.command == "record" else status(args.threshold)
+        if args.command == "record":
+            result = record(args)
+        elif args.command == "issues":
+            result = issues()
+        else:
+            result = status(args.threshold)
     except (OSError, TimeoutError, ValueError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))
         return 1

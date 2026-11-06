@@ -55,7 +55,8 @@ un fichier suivi par Git comme repli.
 
 Chaque constat reçoit un `issue-id` stable en kebab-case, réutilisé lorsque le même
 problème apparaît dans un autre projet, même si le résumé change de langue ou de
-formulation. Le format courant est :
+formulation. Exécuter `scripts/usage_log.py issues` avant de choisir un identifiant ; il
+nomme la nature du problème, jamais un projet ou un service. Le format courant est :
 
 `issue-id|catégorie|sévérité|preuve|version|reproductible|résumé`
 

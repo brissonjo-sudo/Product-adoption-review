@@ -25,19 +25,18 @@ Un audit sans défaut comporte zéro `--finding` et zéro `--improvement`.
 
 ## Identifiants entre projets
 
-Consulter les identifiants existants du journal avant d'en créer un nouveau, sans
-modifier les anciens événements. Ces identifiants désignent des problèmes précis :
+Avant d'enregistrer, exécuter `usage_log.py issues`. La commande liste le vocabulaire
+partagé (avec sa description) puis les identifiants déjà présents dans le journal, avec
+leurs occurrences et leur nombre de projets. Réutiliser un identifiant existant dès que
+le problème est de même nature, sans modifier les anciens événements.
 
-| Identifiant suggéré | Problème |
-|---|---|
-| `release-evidence-mismatch` | La preuve ne porte pas sur la version distribuée |
-| `release-version-mismatch` | Le numéro du paquet diverge de celui de son contenu |
-| `installation-lifecycle-incomplete` | Acquisition, vérification, mise à jour ou retrait manquent |
-| `artifact-unavailable` | L'artefact demandé ne peut pas être obtenu |
-| `claim-evidence-mismatch` | Une affirmation actuelle dépasse ou contredit la preuve |
-| `adoption-feedback-missing` | Aucun retour volontaire n'est organisé |
+Un identifiant nomme la **nature** du problème, applicable à n'importe quel projet. Il ne
+contient jamais le nom d'un projet, d'un produit, d'un service ou d'une version. Exemple :
+`installation-lifecycle-incomplete`, pas `plugin-x-install-missing`.
 
-Ce sont des exemples, pas une obligation de fusionner des problèmes distincts.
+`record` renvoie `new_issue_ids` lorsqu'un identifiant est inédit. Ce n'est pas un refus :
+un problème réellement nouveau mérite un nouvel identifiant. Ne pas fusionner des
+problèmes distincts pour atteindre un seuil.
 
 ## Validation isolée
 
