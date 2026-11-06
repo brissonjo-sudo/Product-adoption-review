@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1] - 2026-11-06
+
+- Décisions `GO`, `GO conditionnel` et `NO-GO` définies dans la rubrique : toute action
+  requise avant la diffusion rend la décision conditionnelle. Écart observé sous Claude,
+  qui rendait GO là où Codex rendait GO conditionnel pour le même constat.
+- Description du skill enrichie de déclencheurs explicites (évaluer une diffusion, une
+  release, un lancement, verdict GO / NO-GO) : le skill ne s'activait pas dans un cas sur
+  trois sous Claude.
+
 ## [0.3.0] - 2026-11-06
 
 Corrections issues de la lecture des 14 usages réels du pilote.

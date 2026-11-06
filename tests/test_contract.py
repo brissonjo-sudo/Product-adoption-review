@@ -24,6 +24,24 @@ class ContractTests(unittest.TestCase):
         assert latest is not None
         self.assertEqual(versions, {latest.group(1)})
 
+    def test_each_decision_is_defined_in_the_rubric(self) -> None:
+        rubric = (
+            ROOT / "skills" / "product-adoption-review" / "references" / "review-rubric.md"
+        ).read_text(encoding="utf-8")
+        for decision in ("- `GO` :", "- `GO conditionnel` :", "- `NO-GO` :"):
+            self.assertIn(decision, rubric)
+        self.assertIn("avant la diffusion", rubric)
+
+    def test_description_names_triggers_and_fits_the_limit(self) -> None:
+        skill = (ROOT / "skills" / "product-adoption-review" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        description = re.search(r'^description: "(.+)"$', skill, re.MULTILINE)
+        assert description is not None
+        self.assertLessEqual(len(description.group(1)), 1024)
+        for trigger in ("évaluer", "release", "GO / NO-GO"):
+            self.assertIn(trigger, description.group(1))
+
     def test_skill_is_implicitly_discoverable_but_scoped(self) -> None:
         config = (ROOT / "skills" / "product-adoption-review" / "agents" / "openai.yaml").read_text(encoding="utf-8")
         skill = (ROOT / "skills" / "product-adoption-review" / "SKILL.md").read_text(encoding="utf-8")
