@@ -5,13 +5,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from usage_log import (
+# python -I n'ajoute pas le dossier du script au chemin d'import : l'ajouter explicitement.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from usage_log import (  # noqa: E402
     DEFAULT_THRESHOLD,
     _lock,
     _safe_text,

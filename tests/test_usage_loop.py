@@ -2,6 +2,7 @@ import argparse
 import importlib.util
 import json
 import os
+import subprocess
 import tempfile
 import time
 import unittest
@@ -347,6 +348,17 @@ class UsageLoopTests(unittest.TestCase):
         path = self._input_file()
         with self.assertRaises(SystemExit), patch("sys.stderr"):
             usage_log.main(["record", "--input", str(path), "--outcome", "GO"])
+
+    def test_scripts_run_in_isolated_python_mode(self) -> None:
+        for script in ("review_usage.py", "usage_log.py"):
+            argv = [sys.executable, "-I", str(SCRIPTS / script)]
+            if script == "usage_log.py":
+                argv.append("status")
+            # -I ignore les variables PYTHON*, pas celle de l'état : l'isolement du test tient.
+            completed = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8")
+            with self.subTest(script=script):
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertTrue(json.loads(completed.stdout)["ok"])
 
     def test_incomplete_use_does_not_advance_threshold(self) -> None:
         args = self.args(1)
