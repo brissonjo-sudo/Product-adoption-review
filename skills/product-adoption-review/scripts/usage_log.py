@@ -316,7 +316,7 @@ def issues() -> dict[str, Any]:
     return {"issues": rows}
 
 
-def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, int | bool | str]:
+def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, Any]:
     if threshold < 1:
         raise ValueError("threshold doit être positif")
     root = state_dir()
@@ -324,6 +324,10 @@ def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, int | bool | str]:
     reviews = read_jsonl(root / "review-events.jsonl")
     reported = max((int(item.get("end_count", 0)) for item in reviews), default=0)
     pending = max(0, len(usage) - reported)
+    latest: dict[str, str] = {}
+    for item in reviews:  # la dernière décision sur un bilan l'emporte
+        if item.get("batch_id"):
+            latest[str(item["batch_id"])] = str(item.get("status", "proposed"))
     return {
         "state_dir": str(root),
         "total_completed": len(usage),
@@ -332,6 +336,8 @@ def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, int | bool | str]:
         "threshold": threshold,
         "review_due": pending >= threshold,
         "next_review_at": reported + threshold,
+        "accepted_reviews": sorted(key for key, value in latest.items() if value == "accepted"),
+        "undecided_reviews": sorted(key for key, value in latest.items() if value == "proposed"),
     }
 
 

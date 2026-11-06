@@ -13,8 +13,11 @@
 Le rapport généré regroupe les motifs par identifiant stable, présente les étapes de
 diffusion et les états de preuve, puis propose un changement minimal et son test. Les
 comptages décrivent les constats sélectionnés pour le journal ; ils ne mesurent pas un
-taux d'échec des projets. La revue humaine décide pour chaque motif : conserver,
-documenter, proposer une règle ou rejeter.
+taux d'échec des projets. Les seuils de promotion se calculent sur tout l'historique : un
+motif réparti sur plusieurs lots reste promouvable. La revue humaine décide pour chaque
+motif : conserver, documenter, proposer une règle ou rejeter. La décision sur le bilan est
+enregistrée par `review_usage.py --decide <lot> --status accepted|rejected --note "…"` ;
+`usage_log.py status` liste alors le lot dans `accepted_reviews`.
 
 Une modification approuvée reçoit une branche, un test de non-régression et une PR sans
 fusion automatique. La publication du dépôt et la version `1.0.0` restent bloquées tant

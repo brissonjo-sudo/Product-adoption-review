@@ -127,6 +127,43 @@ class UsageLoopTests(unittest.TestCase):
         self.assertEqual(usage_log.record(args)["new_issue_ids"], ["custom-gap"])
         self.assertEqual(usage_log.record(args)["new_issue_ids"], [])
 
+    def test_pattern_split_across_two_batches_is_promoted(self) -> None:
+        # Lot 1 : deux occurrences dans deux projets ; lot 2 : une troisième.
+        noise = self.args(0)
+        noise.finding = []
+        noise.improvement = []
+        for index in range(20):
+            if index in (0, 1, 12):
+                usage_log.record(self.args(index))
+            else:
+                usage_log.record(noise)
+        first = Path(review_usage.generate()["report"]).read_text(encoding="utf-8")
+        self.assertIn("Aucun motif n'atteint le seuil", first)
+        second = Path(review_usage.generate()["report"]).read_text(encoding="utf-8")
+        self.assertIn("### `release-evidence-mismatch`", second)
+        self.assertIn("(cumul depuis l'usage 1) : 3 / 2", second)
+
+    def test_decision_is_recorded_without_moving_the_counter(self) -> None:
+        for index in range(10):
+            usage_log.record(self.args(index))
+        review_usage.generate()
+        self.assertEqual(usage_log.status()["undecided_reviews"], ["0001-0010"])
+        review_usage.decide("0001-0010", "accepted", "Motifs revus avec Jo")
+        state = usage_log.status()
+        self.assertEqual(state["accepted_reviews"], ["0001-0010"])
+        self.assertEqual(state["undecided_reviews"], [])
+        self.assertEqual(state["reported_completed"], 10)
+        self.assertEqual(state["next_review_at"], 20)
+
+    def test_decision_on_unknown_batch_is_refused(self) -> None:
+        with self.assertRaises(ValueError):
+            review_usage.decide("0001-0010", "accepted", "Aucun bilan")
+        for index in range(10):
+            usage_log.record(self.args(index))
+        review_usage.generate()
+        with self.assertRaises(ValueError):
+            review_usage.decide("0001-0010", "maybe", "Décision invalide")
+
     def test_equivalent_findings_are_grouped_by_stable_issue_id(self) -> None:
         summaries = [
             "La preuve publiée ne correspond pas au candidat",
