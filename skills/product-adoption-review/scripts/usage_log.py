@@ -12,11 +12,12 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, BinaryIO, Iterator
 
 
 SCHEMA_VERSION = 2
 DEFAULT_THRESHOLD = 10
+STALE_LOCK_SECONDS = 60
 SEVERITIES = {"info", "minor", "major", "blocker"}
 EVIDENCE_STATUSES = {"observed", "declared", "unverified", "contradictory"}
 VERSION_SCOPES = {"current", "earlier", "unspecified", "not-applicable"}
@@ -97,8 +98,18 @@ def _lock(root: Path, timeout: float = 5.0) -> Iterator[None]:
             os.close(fd)
             break
         except FileExistsError:
+            try:
+                # Une écriture dure quelques millisecondes : un verrou ancien vient d'un processus mort.
+                if time.time() - lock.stat().st_mtime > STALE_LOCK_SECONDS:
+                    lock.unlink(missing_ok=True)
+                    continue
+            except FileNotFoundError:
+                continue
             if time.monotonic() >= deadline:
-                raise TimeoutError("journal verrouillé depuis plus de cinq secondes")
+                raise TimeoutError(
+                    f"journal verrouillé depuis plus de {timeout:g} secondes ; "
+                    f"supprimer {lock} si aucun audit n'est en cours"
+                )
             time.sleep(0.05)
     try:
         yield
@@ -106,10 +117,30 @@ def _lock(root: Path, timeout: float = 5.0) -> Iterator[None]:
         lock.unlink(missing_ok=True)
 
 
+def _drop_incomplete_tail(handle: BinaryIO) -> None:
+    """Retire la dernière ligne laissée incomplète par une écriture interrompue."""
+    handle.seek(0, os.SEEK_END)
+    if handle.tell() == 0:
+        return
+    handle.seek(-1, os.SEEK_END)
+    if handle.read(1) == b"\n":
+        return
+    handle.seek(0)
+    data = handle.read()
+    cut = data.rfind(b"\n") + 1
+    try:
+        json.loads(data[cut:])
+    except ValueError:
+        handle.truncate(cut)
+    else:
+        handle.write(b"\n")  # ligne valide sans fin de ligne : la conserver
+
+
 def append_jsonl(path: Path, item: dict[str, Any]) -> None:
     payload = json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n"
-    with path.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write(payload)
+    with path.open("a+b") as handle:
+        _drop_incomplete_tail(handle)
+        handle.write(payload.encode("utf-8"))
         handle.flush()
         os.fsync(handle.fileno())
 

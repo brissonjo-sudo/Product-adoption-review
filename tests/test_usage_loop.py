@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -143,6 +144,39 @@ class UsageLoopTests(unittest.TestCase):
             handle.write('{"truncated":')
         items = usage_log.read_jsonl(log)
         self.assertEqual(len(items), 1)
+
+    def test_records_after_interrupted_write_remain_readable(self) -> None:
+        usage_log.record(self.args(1))
+        log = Path(self.temp.name) / "usage.jsonl"
+        with log.open("a", encoding="utf-8") as handle:
+            handle.write('{"truncated":')
+        usage_log.record(self.args(2))
+        usage_log.record(self.args(3))
+        self.assertEqual(len(usage_log.read_jsonl(log)), 3)
+        self.assertEqual(usage_log.status()["total_completed"], 3)
+
+    def test_valid_last_line_without_newline_is_kept(self) -> None:
+        event = usage_log.record(self.args(1))
+        log = Path(self.temp.name) / "usage.jsonl"
+        log.write_text(json.dumps(event, ensure_ascii=False), encoding="utf-8")
+        usage_log.record(self.args(2))
+        self.assertEqual(len(usage_log.read_jsonl(log)), 2)
+
+    def test_stale_lock_is_removed(self) -> None:
+        lock = Path(self.temp.name) / ".write.lock"
+        lock.write_text("", encoding="utf-8")
+        old = time.time() - usage_log.STALE_LOCK_SECONDS - 1
+        os.utime(lock, (old, old))
+        usage_log.record(self.args(1))
+        self.assertFalse(lock.exists())
+
+    def test_recent_lock_still_blocks(self) -> None:
+        lock = Path(self.temp.name) / ".write.lock"
+        lock.write_text("", encoding="utf-8")
+        with self.assertRaises(TimeoutError):
+            with usage_log._lock(Path(self.temp.name), timeout=0.1):
+                pass
+        self.assertTrue(lock.exists())
 
     def test_incomplete_use_does_not_advance_threshold(self) -> None:
         args = self.args(1)
