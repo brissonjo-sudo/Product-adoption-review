@@ -33,7 +33,10 @@ class UsageLoopTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.env = patch.dict(
             os.environ,
-            {"PRODUCT_ADOPTION_REVIEW_STATE_DIR": self.temp.name},
+            {
+                "PRODUCT_ADOPTION_REVIEW_STATE_DIR": self.temp.name,
+                "LOCALAPPDATA": str(Path(self.temp.name) / "localappdata"),
+            },
             clear=False,
         )
         self.env.start()
@@ -86,6 +89,102 @@ class UsageLoopTests(unittest.TestCase):
         self.assertIn("ne représentent", report)
         self.assertIn("Aucun fichier du skill officiel n'a été modifié", report)
         self.assertFalse(review_usage.generate()["generated"])
+
+    def test_default_state_dir_is_the_same_on_every_system(self) -> None:
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("PRODUCT_ADOPTION_REVIEW_STATE_DIR", None)
+            os.environ.pop("XDG_DATA_HOME", None)
+            expected = Path.home() / ".local" / "share" / "product-adoption-review"
+            self.assertEqual(usage_log.state_dir(), expected)
+            os.environ["XDG_DATA_HOME"] = self.temp.name
+            self.assertEqual(
+                usage_log.state_dir(), Path(self.temp.name) / "product-adoption-review"
+            )
+
+    def test_status_warns_about_unmigrated_legacy_journal(self) -> None:
+        legacy = (
+            Path(os.environ["LOCALAPPDATA"])
+            / "Packages" / "OpenAI.Codex_test" / "LocalCache" / "Local"
+            / "Codex" / "product-adoption-review"
+        )
+        legacy.mkdir(parents=True)
+        event = usage_log.record(self.args(1))
+        self.assertNotIn("legacy_state_dir", usage_log.status())
+        old = dict(event, usage_id="ancien-usage")
+        (legacy / "usage.jsonl").write_text(json.dumps(old) + "\n", encoding="utf-8")
+        state = usage_log.status()
+        self.assertEqual(state["legacy_state_dir"], str(legacy))
+        self.assertEqual(state["legacy_unmigrated_events"], 1)
+        usage_log.append_jsonl(Path(self.temp.name) / "usage.jsonl", old)  # copie faite
+        self.assertNotIn("legacy_state_dir", usage_log.status())
+
+    def test_review_event_stores_a_relative_report_path(self) -> None:
+        for index in range(10):
+            usage_log.record(self.args(index))
+        review_usage.generate()
+        events = usage_log.read_jsonl(Path(self.temp.name) / "review-events.jsonl")
+        self.assertEqual(events[0]["report"], "reviews/0001-0010.md")
+
+    def test_issues_lists_vocabulary_then_journal_ids(self) -> None:
+        args = self.args(1)
+        args.finding = ["custom-gap|install|minor|observed|current|false|Écart local"]
+        args.improvement = ["custom-gap|Corriger|Tester"]
+        usage_log.record(args)
+        usage_log.record(self.args(2))
+        rows = {row["issue_id"]: row for row in usage_log.issues()["issues"]}
+        self.assertTrue(set(usage_log.KNOWN_ISSUE_IDS) <= set(rows))
+        self.assertTrue(rows["release-evidence-mismatch"]["known"])
+        self.assertEqual(rows["release-evidence-mismatch"]["occurrences"], 1)
+        self.assertFalse(rows["custom-gap"]["known"])
+        self.assertEqual(rows["custom-gap"]["projects"], 1)
+        self.assertEqual(rows["artifact-unavailable"]["occurrences"], 0)
+        # Ajouté après la revue acceptée du bilan 0001-0010.
+        self.assertTrue(rows["demo-missing"]["known"])
+
+    def test_record_signals_new_issue_ids_only_once(self) -> None:
+        self.assertEqual(usage_log.record(self.args(1))["new_issue_ids"], [])
+        args = self.args(2)
+        args.finding = ["custom-gap|install|minor|observed|current|false|Écart local"]
+        args.improvement = ["custom-gap|Corriger|Tester"]
+        self.assertEqual(usage_log.record(args)["new_issue_ids"], ["custom-gap"])
+        self.assertEqual(usage_log.record(args)["new_issue_ids"], [])
+
+    def test_pattern_split_across_two_batches_is_promoted(self) -> None:
+        # Lot 1 : deux occurrences dans deux projets ; lot 2 : une troisième.
+        noise = self.args(0)
+        noise.finding = []
+        noise.improvement = []
+        for index in range(20):
+            if index in (0, 1, 12):
+                usage_log.record(self.args(index))
+            else:
+                usage_log.record(noise)
+        first = Path(review_usage.generate()["report"]).read_text(encoding="utf-8")
+        self.assertIn("Aucun motif n'atteint le seuil", first)
+        second = Path(review_usage.generate()["report"]).read_text(encoding="utf-8")
+        self.assertIn("### `release-evidence-mismatch`", second)
+        self.assertIn("(cumul depuis l'usage 1) : 3 / 2", second)
+
+    def test_decision_is_recorded_without_moving_the_counter(self) -> None:
+        for index in range(10):
+            usage_log.record(self.args(index))
+        review_usage.generate()
+        self.assertEqual(usage_log.status()["undecided_reviews"], ["0001-0010"])
+        review_usage.decide("0001-0010", "accepted", "Motifs revus avec Jo")
+        state = usage_log.status()
+        self.assertEqual(state["accepted_reviews"], ["0001-0010"])
+        self.assertEqual(state["undecided_reviews"], [])
+        self.assertEqual(state["reported_completed"], 10)
+        self.assertEqual(state["next_review_at"], 20)
+
+    def test_decision_on_unknown_batch_is_refused(self) -> None:
+        with self.assertRaises(ValueError):
+            review_usage.decide("0001-0010", "accepted", "Aucun bilan")
+        for index in range(10):
+            usage_log.record(self.args(index))
+        review_usage.generate()
+        with self.assertRaises(ValueError):
+            review_usage.decide("0001-0010", "maybe", "Décision invalide")
 
     def test_equivalent_findings_are_grouped_by_stable_issue_id(self) -> None:
         summaries = [

@@ -57,17 +57,52 @@ SENSITIVE_PATTERNS = (
     re.compile(r"https?://\S+\?\S+"),
 )
 ISSUE_ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+KNOWN_ISSUE_IDS = {
+    "release-evidence-mismatch": "La preuve ne porte pas sur la version distribuée",
+    "release-version-mismatch": "Le numéro du paquet diverge de celui de son contenu",
+    "installation-lifecycle-incomplete": "Acquisition, vérification, mise à jour ou retrait manquent",
+    "artifact-unavailable": "L'artefact demandé ne peut pas être obtenu",
+    "claim-evidence-mismatch": "Une affirmation actuelle dépasse ou contredit la preuve",
+    "adoption-feedback-missing": "Aucun retour volontaire n'est organisé",
+    "demo-missing": "Aucune démonstration avant/après ou entrée/sortie du résultat promis",
+}
 
 
 def state_dir() -> Path:
     override = os.environ.get("PRODUCT_ADOPTION_REVIEW_STATE_DIR")
     if override:
         return Path(override)
-    if os.name == "nt":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-        return base / "Codex" / "product-adoption-review"
-    base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    # Hors AppData : l'application Codex du Microsoft Store y virtualise les écritures.
+    base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
     return base / "product-adoption-review"
+
+
+def legacy_state_dirs() -> list[Path]:
+    """Emplacements Windows antérieurs à la 0.3.0, y compris la copie virtualisée du Store."""
+    local = os.environ.get("LOCALAPPDATA")
+    if not local:
+        return []
+    base = Path(local)
+    suffix = Path("Codex") / "product-adoption-review"
+    stores = sorted(base.glob("Packages/OpenAI.Codex_*/LocalCache/Local"))
+    return [base / suffix, *(store / suffix for store in stores)]
+
+
+def _unmigrated_legacy(root: Path, current: list[dict[str, Any]]) -> dict[str, Any]:
+    known = {item.get("usage_id") for item in current}
+    for legacy in legacy_state_dirs():
+        if legacy == root or not (legacy / "usage.jsonl").exists():
+            continue
+        missing = [
+            item for item in read_jsonl(legacy / "usage.jsonl") if item.get("usage_id") not in known
+        ]
+        if missing:
+            return {
+                "legacy_state_dir": str(legacy),
+                "legacy_unmigrated_events": len(missing),
+                "migration_hint": f"copier le contenu de legacy_state_dir vers {root}",
+            }
+    return {}
 
 
 def _safe_text(value: str, field: str) -> str:
@@ -275,18 +310,54 @@ def record(args: argparse.Namespace) -> dict[str, Any]:
         "completed": bool(args.completed),
     }
     with _lock(root):
+        seen = _journal_issue_ids(read_jsonl(root / "usage.jsonl"))
         append_jsonl(root / "usage.jsonl", event)
-    return event
+    new_ids = sorted(finding_ids - KNOWN_ISSUE_IDS.keys() - seen.keys())
+    return {**event, "new_issue_ids": new_ids}
 
 
-def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, int | bool | str]:
+def _journal_issue_ids(events: list[dict[str, Any]]) -> dict[str, dict[str, set[str]]]:
+    """Identifiants explicites du journal : usages et projets où chacun apparaît."""
+    found: dict[str, dict[str, set[str]]] = {}
+    for event in events:
+        for finding in event.get("findings", []):
+            issue_id = finding.get("issue_id")
+            if issue_id:
+                entry = found.setdefault(issue_id, {"uses": set(), "projects": set()})
+                entry["uses"].add(str(event.get("usage_id")))
+                entry["projects"].add(str(event.get("project_id")))
+    return found
+
+
+def issues() -> dict[str, Any]:
+    found = _journal_issue_ids(read_jsonl(state_dir() / "usage.jsonl"))
+    rows = [
+        {
+            "issue_id": issue_id,
+            "known": issue_id in KNOWN_ISSUE_IDS,
+            "description": KNOWN_ISSUE_IDS.get(issue_id, ""),
+            "occurrences": len(found.get(issue_id, {}).get("uses", ())),
+            "projects": len(found.get(issue_id, {}).get("projects", ())),
+        }
+        for issue_id in sorted(KNOWN_ISSUE_IDS.keys() | found.keys())
+    ]
+    rows.sort(key=lambda row: (not row["known"], -row["occurrences"], row["issue_id"]))
+    return {"issues": rows}
+
+
+def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, Any]:
     if threshold < 1:
         raise ValueError("threshold doit être positif")
     root = state_dir()
-    usage = [item for item in read_jsonl(root / "usage.jsonl") if item.get("completed") is True]
+    events = read_jsonl(root / "usage.jsonl")
+    usage = [item for item in events if item.get("completed") is True]
     reviews = read_jsonl(root / "review-events.jsonl")
     reported = max((int(item.get("end_count", 0)) for item in reviews), default=0)
     pending = max(0, len(usage) - reported)
+    latest: dict[str, str] = {}
+    for item in reviews:  # la dernière décision sur un bilan l'emporte
+        if item.get("batch_id"):
+            latest[str(item["batch_id"])] = str(item.get("status", "proposed"))
     return {
         "state_dir": str(root),
         "total_completed": len(usage),
@@ -295,6 +366,9 @@ def status(threshold: int = DEFAULT_THRESHOLD) -> dict[str, int | bool | str]:
         "threshold": threshold,
         "review_due": pending >= threshold,
         "next_review_at": reported + threshold,
+        "accepted_reviews": sorted(key for key, value in latest.items() if value == "accepted"),
+        "undecided_reviews": sorted(key for key, value in latest.items() if value == "proposed"),
+        **_unmigrated_legacy(root, events),
     }
 
 
@@ -316,13 +390,19 @@ def build_parser() -> argparse.ArgumentParser:
     record_parser.add_argument("--completed", action="store_true")
     status_parser = subparsers.add_parser("status")
     status_parser.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD)
+    subparsers.add_parser("issues")
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        result = record(args) if args.command == "record" else status(args.threshold)
+        if args.command == "record":
+            result = record(args)
+        elif args.command == "issues":
+            result = issues()
+        else:
+            result = status(args.threshold)
     except (OSError, TimeoutError, ValueError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))
         return 1

@@ -9,12 +9,28 @@ Le skill s'active lors d'une diffusion externe : release, README public, plugin,
 marketplace, application, document utilisateur ou lancement. Il reste inactif pendant
 le développement interne ordinaire.
 
+## Exemple
+
+Demande (fixture synthétique `tests/fixtures/case-b`) : « Évaluer la diffusion stable de
+Nettoie-tableau 1.0, qui promet de retirer tous les identifiants. »
+
+Verdict rendu : **NO-GO pour `stable-release`**.
+
+- `claim-evidence-mismatch` · `blocker` · preuve `contradictory` : l'exemple publié de la
+  1.0 conserve `TEST-001`, malgré la promesse.
+- `artifact-unavailable` · `blocker` · preuve `observed` : le bouton « Télécharger » ne
+  mène à aucune archive.
+- Le rapport 0.8 n'est pas retenu comme preuve : il porte sur une version `earlier`.
+
+Le verdict est celui observé lors de l'évaluation 0.2.0
+([`docs/evaluation-0.2.0.md`](docs/evaluation-0.2.0.md)) ; les constats sont résumés.
+
 ## Boucle d'amélioration locale
 
 Après chaque audit terminé, le skill écrit une entrée minimale et pseudonymisée dans :
 
 ```text
-%LOCALAPPDATA%\Codex\product-adoption-review\usage.jsonl
+~/.local/share/product-adoption-review/usage.jsonl
 ```
 
 Le chemin du projet est haché, jamais conservé. Le script refuse les formats connus de
@@ -43,7 +59,7 @@ refuser un pilote destiné à recueillir cette preuve.
 
 ## Installation pilote
 
-Prérequis : Python 3.10 ou plus récent (CI : 3.13, Ubuntu et Windows), bibliothèque
+Prérequis : Python 3.10 ou plus récent (CI : 3.10 et 3.13, Ubuntu et Windows ; macOS non testé), bibliothèque
 standard uniquement.
 
 1. Copier le dossier `skills/product-adoption-review/` dans le répertoire des skills
@@ -61,9 +77,9 @@ Le skill est découvrable automatiquement uniquement pour les travaux de diffusi
 
 Dossier d'état (journal et bilans) :
 
-- Windows : `%LOCALAPPDATA%\Codex\product-adoption-review\` ;
-- Linux et macOS : `$XDG_DATA_HOME/product-adoption-review/`, par défaut
-  `~/.local/share/product-adoption-review/` ;
+- tous systèmes, Windows compris : `~/.local/share/product-adoption-review/`, ou
+  `$XDG_DATA_HOME/product-adoption-review/` si cette variable est définie (hors
+  `AppData`, que l'application Codex du Microsoft Store virtualise) ;
 - surcharge possible avec la variable `PRODUCT_ADOPTION_REVIEW_STATE_DIR`.
 
 ## Confidentialité
