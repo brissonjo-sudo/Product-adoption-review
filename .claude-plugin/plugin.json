@@ -1,6 +1,6 @@
 {
   "name": "product-adoption-review",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Audit external releases for positioning, installability, discoverability, distribution, and evidence.",
   "author": {
     "name": "brissonjo-sudo",

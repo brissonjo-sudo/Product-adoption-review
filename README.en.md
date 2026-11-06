@@ -9,6 +9,23 @@ The skill activates for external distribution: a release, a public README, a plu
 marketplace listing, an application, user documentation, or a launch. It stays inactive
 during ordinary internal development.
 
+## Example
+
+Request (synthetic fixture `tests/fixtures/case-b`): "Review the stable release of
+Nettoie-tableau 1.0, which promises to remove every identifier."
+
+Verdict: **NO-GO for `stable-release`**.
+
+- `claim-evidence-mismatch` · `blocker` · `contradictory` evidence: the published 1.0
+  example still contains `TEST-001`, despite the promise.
+- `artifact-unavailable` · `blocker` · `observed` evidence: the "Download" button leads
+  to no archive.
+- The 0.8 report is not accepted as evidence: it covers an `earlier` version.
+
+The verdict is the one observed during the 0.2.0 evaluation
+([`docs/evaluation-0.2.0.md`](docs/evaluation-0.2.0.md), in French); findings are
+summarized.
+
 ## Local improvement loop
 
 After each completed review, the skill writes a minimal, pseudonymized entry to:
@@ -43,7 +60,7 @@ to collect that evidence.
 
 ## Pilot installation
 
-Requirements: Python 3.10 or later (CI: 3.13 on Ubuntu and Windows), standard library
+Requirements: Python 3.10 or later (CI: 3.10 and 3.13 on Ubuntu and Windows; macOS untested), standard library
 only.
 
 1. Copy the `skills/product-adoption-review/` folder into the agent's personal skills

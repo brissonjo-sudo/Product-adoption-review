@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0] - 2026-11-06
+
+Corrections issues de la lecture des 14 usages réels du pilote.
+
+- **Emplacement d'état unique** `~/.local/share/product-adoption-review` (ou
+  `$XDG_DATA_HOME`) sur tous les systèmes : l'application Codex du Microsoft Store
+  virtualisait `%LOCALAPPDATA%`, rendant le journal introuvable et scindant le compteur.
+  Le bilan est référencé en chemin relatif.
+- Commande `usage_log.py issues` : vocabulaire partagé et identifiants du journal ;
+  `record` signale un identifiant inédit. Un identifiant ne nomme jamais un projet.
+- Seuils de promotion calculés sur tout l'historique, et non plus sur le seul lot.
+- Décision humaine enregistrée par `review_usage.py --decide` ; `status` liste les bilans
+  acceptés et non décidés.
+- README : exemple de verdict ; CI sur Python 3.10 et 3.13.
+
 ## [0.2.0] - 2026-09-22
 
 - Verdicts rattachés à un niveau de diffusion explicite.
