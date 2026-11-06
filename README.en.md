@@ -1,12 +1,73 @@
 # Product Adoption Review
 
-A cross-project skill that checks whether an external release has a clear promise,
-demonstration, verifiable installation path, discoverability, distribution plan, and
-honest evidence.
+A cross-project skill that keeps a technically sound project from being released without
+a clear promise, a demonstration, a verifiable installation path, or a distribution plan.
 
-Completed reviews are logged locally with pseudonymized project identifiers and minimal
-metadata. Prompts, responses, project paths, secrets, and personal data are rejected.
-Every ten completed uses produce a local review report. Official skill changes always
-require human approval, tests, and a pull request.
+## Scope
 
-No telemetry or network service is included.
+The skill activates for external distribution: a release, a public README, a plugin, a
+marketplace listing, an application, user documentation, or a launch. It stays inactive
+during ordinary internal development.
+
+## Local improvement loop
+
+After each completed review, the skill writes a minimal, pseudonymized entry to:
+
+```text
+%LOCALAPPDATA%\Codex\product-adoption-review\usage.jsonl
+```
+
+The project path is hashed and never stored. The script rejects known path, secret
+(`sk-`, `ghp_`, `AKIA`…) and email formats, but this filter is not exhaustive: the agent
+remains responsible for never logging prompts, responses, or personal data.
+Every batch of ten uses produces a local Markdown report. The report may propose a
+change, but never modifies the official skill automatically.
+
+Since version 0.2.0, each review records the target release stage, the evidence status,
+and its version scope. Equivalent findings share a stable issue identifier, so the report
+can group them despite different wording or languages. Every candidate includes the
+proposed minimal change and regression test.
+
+## Governance
+
+- private pilot repository at version `0.x`;
+- a rule becomes a candidate after three occurrences in two projects, unless it is a
+  reproducible blocker;
+- human approval is mandatory;
+- branch, regression test, and pull request without automatic merge;
+- `1.0.0` is published after the first accepted report.
+
+A verdict always applies to one explicit stage: assisted pilot, closed beta, public beta,
+or stable release. Missing adoption evidence alone is not enough to refuse a pilot meant
+to collect that evidence.
+
+## Pilot installation
+
+Requirements: Python 3.10 or later (CI: 3.13 on Ubuntu and Windows), standard library
+only.
+
+1. Copy the `skills/product-adoption-review/` folder into the agent's personal skills
+   directory:
+   - Codex: `~/.agents/skills/product-adoption-review/`;
+   - Claude Code: `~/.claude/skills/product-adoption-review/`.
+2. Verify: `python <skill-dir>/scripts/usage_log.py status` must print `"ok": true` and
+   the state directory.
+3. Update: replace the copied folder with the new version. The local log is kept.
+4. Uninstall: delete the copied folder, then, if the log is no longer needed, the state
+   directory below.
+
+The skill is discovered automatically only for external distribution work.
+
+State directory (log and reports):
+
+- Windows: `%LOCALAPPDATA%\Codex\product-adoption-review\`;
+- Linux and macOS: `$XDG_DATA_HOME/product-adoption-review/`, by default
+  `~/.local/share/product-adoption-review/`;
+- override with the `PRODUCT_ADOPTION_REVIEW_STATE_DIR` variable.
+
+## Privacy
+
+No telemetry and no network calls. The scripts use only the Python standard library and
+fail explicitly if the local log cannot be written.
+
+The first series of ten uses is described in [`docs/pilot.md`](docs/pilot.md) (in French).

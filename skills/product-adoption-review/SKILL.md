@@ -20,18 +20,28 @@ l'appliquer aux tâches internes sans diffusion externe.
 
 ## Audit
 
-1. Identifier l'audience et le problème concret qu'elle reconnaît déjà.
-2. Formuler une promesse testable en une phrase, centrée sur le résultat utilisateur.
-3. Montrer le changement avant d'expliquer le système : démonstration, avant/après ou
+1. Fixer le périmètre avant de conclure : artefact réellement disponible, audience,
+   canal et niveau visé (`assisted-pilot`, `closed-beta`, `public-beta` ou
+   `stable-release`). Rendre le verdict pour ce niveau précis.
+2. Identifier le problème concret que l'audience reconnaît déjà.
+3. Formuler une promesse testable en une phrase, centrée sur le résultat utilisateur.
+4. Montrer le changement avant d'expliquer le système : démonstration, avant/après ou
    parcours court.
-4. Vérifier qu'un nom, un dépôt et un appel à l'action désignent clairement le produit.
-5. Réduire l'installation au chemin le plus court sûr, puis documenter vérification,
+5. Vérifier qu'un nom, un dépôt et un appel à l'action désignent clairement le produit.
+6. Réduire l'installation au chemin le plus court sûr, puis documenter vérification,
    mise à jour et désinstallation.
-6. Distinguer plateformes annoncées et plateformes réellement testées.
-7. Renseigner description, topics, langues, licence et métadonnées de découverte.
-8. Préparer les canaux de diffusion sans publier ni contacter de tiers sans autorisation.
-9. Définir des signaux observables à J+7 et J+30 sans télémétrie implicite.
-10. Séparer dans le rapport : validation statique, preuve comportementale et adoption.
+7. Distinguer plateformes annoncées et plateformes réellement testées.
+8. Renseigner description, topics, langues, licence et métadonnées de découverte.
+9. Préparer les canaux de diffusion sans publier ni contacter de tiers sans autorisation.
+10. Définir des signaux observables à J+7 et J+30 sans télémétrie implicite.
+11. Qualifier chaque preuve comme `observed`, `declared`, `unverified` ou
+    `contradictory`, et préciser si elle porte sur la version `current`, `earlier`,
+    `unspecified` ou `not-applicable`.
+12. Séparer dans le rapport : validation statique, preuve comportementale et adoption.
+
+L'absence de preuve d'adoption n'interdit pas à elle seule un pilote dont le but est de
+la recueillir. Elle bloque un niveau seulement si cette preuve est nécessaire pour
+accéder sans danger à ce niveau. Distinguer une preuve absente d'un échec observé.
 
 Lire [references/review-rubric.md](references/review-rubric.md) pour les niveaux de
 sévérité et les critères de promotion d'un apprentissage.
@@ -43,6 +53,26 @@ métadonnées assainies. Ne jamais enregistrer prompt, réponse, chemin absolu, 
 donnée personnelle ou contenu métier. Signaler si l'écriture échoue ; ne pas utiliser
 un fichier suivi par Git comme repli.
 
+Chaque constat reçoit un `issue-id` stable en kebab-case, réutilisé lorsque le même
+problème apparaît dans un autre projet, même si le résumé change de langue ou de
+formulation. Le format courant est :
+
+`issue-id|catégorie|sévérité|preuve|version|reproductible|résumé`
+
+Ajouter pour chaque constat :
+
+`issue-id|changement-minimal|test-de-non-régression`
+
+Renseigner aussi l'audience, le canal et le niveau de diffusion cible. Limiter le journal
+à quatre constats décisifs au plus ; un audit sans défaut peut avoir zéro constat.
+Les agrégats du bilan décrivent cette sélection et
+ne constituent pas un taux d'échec des projets.
+
+Avant d'enregistrer un événement, lire [references/journal-schema.md](references/journal-schema.md)
+pour les options CLI et la séparation entre constats et propositions. Utiliser le script
+pour valider le contrat. Les évaluations synthétiques utilisent un état temporaire isolé
+et ne font pas progresser le compteur réel.
+
 Exécuter ensuite `scripts/review_usage.py`. Le script produit un bilan local lorsqu'un
 nouveau lot de dix usages terminés est disponible. Mentionner le chemin du bilan, mais
 ne modifier aucune règle officielle sans validation explicite de l'utilisateur.
@@ -50,13 +80,15 @@ ne modifier aucune règle officielle sans validation explicite de l'utilisateur.
 ## Promotion d'un apprentissage
 
 Une règle est candidate après trois occurrences dans au moins deux projets distincts.
-Un défaut bloquant reproductible peut être candidat dès la première occurrence.
+Un défaut bloquant peut être candidat dès la première occurrence uniquement si sa
+reproductibilité est établie.
 Le bilan propose un changement minimal et les tests associés. Après accord seulement,
 créer une branche, modifier le dépôt officiel, valider, puis ouvrir une PR sans fusion
 automatique.
 
 ## Résultat attendu
 
-Rendre en priorité les blocages d'adoption, puis les corrections à fort effet. Ne pas
+Rendre une décision `GO`, `GO conditionnel` ou `NO-GO` pour le niveau de diffusion
+évalué. Rendre en priorité les blocages d'adoption, puis les corrections à fort effet. Ne pas
 recommander une nouvelle plateforme, un rebranding ou une publication externe sans lien
 avec les preuves collectées et le périmètre demandé.
