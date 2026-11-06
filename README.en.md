@@ -5,7 +5,9 @@ demonstration, verifiable installation path, discoverability, distribution plan,
 honest evidence.
 
 Completed reviews are logged locally with pseudonymized project identifiers and minimal
-metadata. Prompts, responses, project paths, secrets, and personal data are rejected.
+metadata. The script rejects known path, secret (`sk-`, `ghp_`, `AKIA`…) and email
+formats; this filter is not exhaustive, so the agent remains responsible for never logging
+prompts, responses, or personal data.
 Every ten completed uses produce a local review report. Official skill changes always
 require human approval, tests, and a pull request.
 

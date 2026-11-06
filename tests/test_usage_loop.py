@@ -136,6 +136,26 @@ class UsageLoopTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             usage_log.record(args)
 
+    def test_known_secret_and_personal_formats_are_rejected(self) -> None:
+        values = [
+            "clé sk-proj-AbCdEfGh1234567890XyZ",
+            "sk-ant-api03-AbCdEfGh1234567890",
+            "AKIAIOSFODNN7EXAMPLE",
+            "contact jean.dupont@exemple.fr",
+            "voir /var/www/client-x/app",
+            "voir ~/projets/client-x",
+            r"\\serveur\partage\dossier",
+        ]
+        for value in values:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                usage_log._safe_text(value, "decision")
+
+    def test_public_url_without_query_is_accepted(self) -> None:
+        url = "https://github.com/o/r/releases"
+        self.assertEqual(usage_log._safe_text(url, "channel"), url)
+        with self.assertRaises(ValueError):
+            usage_log._safe_text(url + "?token=x", "channel")
+
     def test_truncated_last_line_and_duplicate_are_tolerated(self) -> None:
         event = usage_log.record(self.args(1))
         log = Path(self.temp.name) / "usage.jsonl"

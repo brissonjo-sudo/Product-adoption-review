@@ -43,9 +43,15 @@ ARTIFACT_KINDS = {
     "other",
 }
 SENSITIVE_PATTERNS = (
-    re.compile(r"[A-Za-z]:[\\/]"),
+    re.compile(r"(?<![A-Za-z])[A-Za-z]:[\\/]"),  # lecteur Windows, pas « https:/ »
+    re.compile(r"\\\\[\w.-]+[\\/]"),  # chemin UNC
+    re.compile(r"~[\\/]"),
+    re.compile(r"(?:^|[\s(\"'=])/[\w.-]+/"),  # chemin absolu Unix
     re.compile(r"/(?:Users|home)/", re.IGNORECASE),
     re.compile(r"\b(?:sk|ghp|github_pat)_[A-Za-z0-9_-]{8,}\b"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{16,}"),
+    re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
+    re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
     re.compile(r"\b(?:password|passwd|token|secret|api[_-]?key)\s*[:=]", re.IGNORECASE),
     re.compile(r"https?://\S+\?\S+"),
 )

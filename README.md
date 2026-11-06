@@ -17,7 +17,10 @@ Après chaque audit terminé, le skill écrit une entrée minimale et pseudonymi
 %LOCALAPPDATA%\Codex\product-adoption-review\usage.jsonl
 ```
 
-Les prompts, réponses, chemins de projet, secrets et données personnelles sont refusés.
+Le chemin du projet est haché, jamais conservé. Le script refuse les formats connus de
+chemins, de secrets (clés `sk-`, `ghp_`, `AKIA`…) et d'adresses e-mail, mais ce filtre ne
+détecte pas tout : l'agent reste responsable de n'enregistrer ni prompt, ni réponse, ni
+donnée personnelle.
 Chaque lot de dix usages produit un bilan Markdown local. Le bilan peut proposer une
 évolution, mais ne modifie jamais automatiquement le skill officiel.
 
