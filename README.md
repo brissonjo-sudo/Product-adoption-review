@@ -1,5 +1,7 @@
 # Product Adoption Review
 
+[English version](README.en.md)
+
 Skill transverse pour éviter qu'un projet techniquement solide soit publié sans promesse
 claire, démonstration, installation vérifiable ou stratégie de diffusion.
 
@@ -24,6 +26,8 @@ Verdict rendu : **NO-GO pour `stable-release`**.
 
 Le verdict est celui observé lors de l'évaluation 0.2.0
 ([`docs/evaluation-0.2.0.md`](docs/evaluation-0.2.0.md)) ; les constats sont résumés.
+L'évaluation de la version courante sous Claude Code est dans
+[`docs/evaluation-0.3.1.md`](docs/evaluation-0.3.1.md).
 
 ## Boucle d'amélioration locale
 
@@ -47,7 +51,7 @@ Chaque candidat contient le changement minimal et le test de non-régression pro
 
 ## Gouvernance
 
-- dépôt pilote privé en version `0.x` ;
+- version `0.x` en pilote ; le dépôt reste privé tant que l'ouverture publique n'est pas décidée ;
 - règle candidate après trois occurrences dans deux projets, sauf blocage reproductible ;
 - validation humaine obligatoire ;
 - branche, test de non-régression et PR sans fusion automatique ;
@@ -88,3 +92,16 @@ Aucune télémétrie et aucun appel réseau. Les scripts utilisent uniquement la
 standard Python et échouent explicitement si le journal local ne peut pas être écrit.
 
 Le déroulé de la première série de dix usages est détaillé dans [`docs/pilot.md`](docs/pilot.md).
+
+## Retours
+
+Aucune télémétrie : les retours sont volontaires. Les ouvrir comme *issues* du dépôt, sans
+prompt, réponse, chemin ni donnée personnelle (le skill applique la même règle à son journal).
+
+Signaux observés après la première installation :
+
+- **J+7** : l'installation a été essayée et son résultat rapporté (réussite, ou échec avec
+  l'étape bloquante) ; `usage_log.py status` affiche `"ok": true` ;
+- **J+30** : au moins un audit terminé sur un projet réel est rapporté (verdict, niveau de
+  diffusion, constat jugé utile ou inutile) ;
+- **toute échéance** : un déclenchement manqué ou intempestif est un retour prioritaire.
