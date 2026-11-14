@@ -65,6 +65,10 @@ KNOWN_ISSUE_IDS = {
     "claim-evidence-mismatch": "Une affirmation actuelle dépasse ou contredit la preuve",
     "adoption-feedback-missing": "Aucun retour volontaire n'est organisé",
     "demo-missing": "Aucune démonstration avant/après ou entrée/sortie du résultat promis",
+    "personal-data-in-public-repo": "Donnée personnelle ou secret dans les fichiers ou l'historique publiés",
+    "install-prerequisite-unverified": "Un prérequis d'installation n'est pas déclaré ou pas vérifié",
+    "docs-out-of-sync": "La documentation ne correspond plus à l'état diffusé",
+    "distribution-status-ambiguity": "Le statut de diffusion (privé, pilote, public) est ambigu",
 }
 
 

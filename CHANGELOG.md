@@ -1,5 +1,13 @@
 # Changelog
 
+## Non publié
+
+- Revue du bilan 0011-0020 acceptée. Étape 9 : avant une diffusion publique, vérifier
+  les fichiers suivis et l'historique publié, auteurs de commits compris (motif
+  `personal-data-in-public-repo`, 3 projets en un mois).
+- Vocabulaire partagé enrichi : `personal-data-in-public-repo`,
+  `install-prerequisite-unverified`, `docs-out-of-sync`, `distribution-status-ambiguity`.
+
 ## [0.3.1] - 2026-11-06
 
 - Décisions `GO`, `GO conditionnel` et `NO-GO` définies dans la rubrique : toute action
