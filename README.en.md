@@ -1,5 +1,7 @@
 # Product Adoption Review
 
+[Version française](README.md)
+
 A cross-project skill that keeps a technically sound project from being released without
 a clear promise, a demonstration, a verifiable installation path, or a distribution plan.
 
@@ -24,7 +26,8 @@ Verdict: **NO-GO for `stable-release`**.
 
 The verdict is the one observed during the 0.2.0 evaluation
 ([`docs/evaluation-0.2.0.md`](docs/evaluation-0.2.0.md), in French); findings are
-summarized.
+summarized. The evaluation of the current version under Claude Code is in
+[`docs/evaluation-0.3.1.md`](docs/evaluation-0.3.1.md) (in French).
 
 ## Local improvement loop
 
@@ -47,7 +50,7 @@ proposed minimal change and regression test.
 
 ## Governance
 
-- private pilot repository at version `0.x`;
+- version `0.x` in pilot; the repository stays private until a public opening is decided;
 - a rule becomes a candidate after three occurrences in two projects, unless it is a
   reproducible blocker;
 - human approval is mandatory;
@@ -88,3 +91,16 @@ No telemetry and no network calls. The scripts use only the Python standard libr
 fail explicitly if the local log cannot be written.
 
 The first series of ten uses is described in [`docs/pilot.md`](docs/pilot.md) (in French).
+
+## Feedback
+
+No telemetry: feedback is voluntary. Open it as a repository *issue*, with no prompt,
+response, path, or personal data (the skill applies the same rule to its log).
+
+Signals observed after the first installation:
+
+- **Day 7**: the installation was tried and its result reported (success, or failure with
+  the blocking step); `usage_log.py status` prints `"ok": true`;
+- **Day 30**: at least one completed review on a real project is reported (verdict, release
+  stage, finding judged useful or not);
+- **at any time**: a missed or unwanted trigger is top-priority feedback.

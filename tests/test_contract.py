@@ -24,6 +24,18 @@ class ContractTests(unittest.TestCase):
         assert latest is not None
         self.assertEqual(versions, {latest.group(1)})
 
+    def test_current_version_has_an_archived_evaluation(self) -> None:
+        version = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+        self.assertTrue((ROOT / "docs" / f"evaluation-{version}.md").exists())
+
+    def test_readmes_link_each_other_and_open_a_feedback_channel(self) -> None:
+        french = (ROOT / "README.md").read_text(encoding="utf-8")
+        english = (ROOT / "README.en.md").read_text(encoding="utf-8")
+        self.assertIn("(README.en.md)", french)
+        self.assertIn("(README.md)", english)
+        for text in (french, english):
+            self.assertIn("J+7" if text is french else "Day 7", text)
+
     def test_each_decision_is_defined_in_the_rubric(self) -> None:
         rubric = (
             ROOT / "skills" / "product-adoption-review" / "references" / "review-rubric.md"
