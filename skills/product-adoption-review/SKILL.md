@@ -33,6 +33,9 @@ l'appliquer aux tâches internes sans diffusion externe.
 7. Distinguer plateformes annoncées et plateformes réellement testées.
 8. Renseigner description, topics, langues, licence et métadonnées de découverte.
 9. Préparer les canaux de diffusion sans publier ni contacter de tiers sans autorisation.
+   Avant une diffusion publique, vérifier que les fichiers suivis et l'historique publié,
+   auteurs de commits compris, ne contiennent ni donnée personnelle ni secret : un retrait
+   par simple commit ne suffit pas, l'historique la conserve.
 10. Définir des signaux observables à J+7 et J+30 sans télémétrie implicite.
 11. Qualifier chaque preuve comme `observed`, `declared`, `unverified` ou
     `contradictory`, et préciser si elle porte sur la version `current`, `earlier`,

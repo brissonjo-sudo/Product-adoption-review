@@ -141,6 +141,14 @@ class UsageLoopTests(unittest.TestCase):
         self.assertEqual(rows["artifact-unavailable"]["occurrences"], 0)
         # Ajouté après la revue acceptée du bilan 0001-0010.
         self.assertTrue(rows["demo-missing"]["known"])
+        # Ajoutés après la revue acceptée du bilan 0011-0020.
+        for issue_id in (
+            "personal-data-in-public-repo",
+            "install-prerequisite-unverified",
+            "docs-out-of-sync",
+            "distribution-status-ambiguity",
+        ):
+            self.assertTrue(rows[issue_id]["known"])
 
     def test_record_signals_new_issue_ids_only_once(self) -> None:
         self.assertEqual(usage_log.record(self.args(1))["new_issue_ids"], [])

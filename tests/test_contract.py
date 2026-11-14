@@ -70,6 +70,13 @@ class ContractTests(unittest.TestCase):
         self.assertIn("issue-id", skill)
         self.assertIn("test-de-non-régression", skill)
 
+    def test_public_release_checks_published_history(self) -> None:
+        skill = (ROOT / "skills" / "product-adoption-review" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("historique publié", skill)
+        self.assertIn("auteurs de commits", skill)
+
 
 if __name__ == "__main__":
     unittest.main()
